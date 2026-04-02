@@ -113,7 +113,7 @@ Ce module combine deux approches complémentaires pour une détection robuste :
     \node[block=orange!15, right=1.5cm of faces] (cnn_face) {CNN\\Validation\\Visage};
     \node[block=purple!15, below=1.5cm of haar] (haar_eyes) {Cascade\\Haar Yeux};
     \node[block=red!15, below=1.5cm of cnn_face] (cnn_eyes) {CNN\\Classification\\Yeux};
-    \node[block=green!15, below=1.5cm of $(haar_eyes)!0.5!(cnn_eyes)$] (output) {Résultat :\\état + confiance};
+    \node[block=green!15, below=1.5cm of haar_eyes] (output) {Résultat :\\état + confiance};
     
     \draw[arrow] (input) -- (haar);
     \draw[arrow] (haar) -- (faces);
@@ -234,7 +234,7 @@ L'estimation de la pose utilise 6 points de repère faciaux (\textit{landmarks})
 ]
     \node[block=blue!15] (landmarks) {6 Points 2D\\(landmarks)};
     \node[block=orange!15, below=1cm of landmarks] (model3d) {Modèle 3D\\du visage};
-    \node[block=purple!15, right=2.5cm of $(landmarks)!0.5!(model3d)$] (pnp) {solvePnP\\(OpenCV)};
+    \node[block=purple!15, right=2.5cm of landmarks] (pnp) {solvePnP\\(OpenCV)};
     \node[block=green!15, right=2.5cm of pnp] (angles) {Angles d'Euler\\(Yaw, Pitch, Roll)};
     
     \draw[arrow] (landmarks) -| (pnp);
@@ -528,13 +528,13 @@ Les messages CAN envoyés par l'ECU DMS sont définis dans le tableau~\ref{tab:c
 \rowcolor{stellantisblue!15}
 \textbf{ID CAN} & \textbf{Nom} & \textbf{DLC} & \textbf{Contenu} \\
 \hline
-0x300 & DMS\_STATUS & 8 & Octet 0: Niveau d'alerte (0-4)\\& & & & Octets 1-2: Score fatigue ($\times 100$)\\& & & & Octets 3-4: Score distraction ($\times 100$)\\& & & & Octet 5: État conducteur (0-3)\\& & & & Octets 6-7: PERCLOS ($\times 100$) \\
+0x300 & DMS\_STATUS & 8 & Octet 0: Niveau d'alerte (0--4), Octets 1--2: Score fatigue ($\times 100$), Octets 3--4: Score distraction ($\times 100$), Octet 5: État conducteur (0--3), Octets 6--7: PERCLOS ($\times 100$) \\
 \hline
-0x301 & DMS\_ALERT & 4 & Octet 0: Type d'alerte\\& & & & Octet 1: Priorité\\& & & & Octets 2-3: Durée (ms) \\
+0x301 & DMS\_ALERT & 4 & Octet 0: Type d'alerte, Octet 1: Priorité, Octets 2--3: Durée (ms) \\
 \hline
-0x302 & DMS\_HEAD\_POSE & 6 & Octets 0-1: Yaw ($\times 100$)\\& & & & Octets 2-3: Pitch ($\times 100$)\\& & & & Octets 4-5: Roll ($\times 100$) \\
+0x302 & DMS\_HEAD\_POSE & 6 & Octets 0--1: Yaw ($\times 100$), Octets 2--3: Pitch ($\times 100$), Octets 4--5: Roll ($\times 100$) \\
 \hline
-0x303 & DMS\_EYE\_STATE & 4 & Octet 0: État yeux (0=ouvert, 1=fermé)\\& & & & Octet 1: Confiance ($\times 100$)\\& & & & Octets 2-3: EAR ($\times 1000$) \\
+0x303 & DMS\_EYE\_STATE & 4 & Octet 0: État yeux (0=ouvert, 1=fermé), Octet 1: Confiance ($\times 100$), Octets 2--3: EAR ($\times 1000$) \\
 \hline
 \end{tabularx}
 \end{table}

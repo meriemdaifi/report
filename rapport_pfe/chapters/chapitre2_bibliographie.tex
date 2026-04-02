@@ -462,20 +462,38 @@ La trame CAN standard (CAN 2.0A) est structurée comme suit :
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[scale=0.8]
-    \foreach \x/\w/\label/\bits/\color in {
-        0/0.5/SOF/1 bit/yellow!30,
-        0.5/2.5/Identifiant/11 bits/stellantisblue!20,
-        3.0/0.5/RTR/1 bit/green!20,
-        3.5/1.5/Contrôle/6 bits/orange!20,
-        5.0/4.0/Données/0-8 octets/red!15,
-        9.0/2.0/CRC/16 bits/purple!20,
-        11.0/0.5/ACK/2 bits/cyan!20,
-        11.5/1.0/EOF/7 bits/gray!20
-    } {
-        \draw[thick, fill=\color] (\x, 0) rectangle (\x+\w, 1.5);
-        \node[text width=\w cm, align=center, font=\tiny\bfseries] at (\x+\w/2, 1.0) {\label};
-        \node[text width=\w cm, align=center, font=\tiny] at (\x+\w/2, 0.4) {\bits};
-    }
+    % SOF
+    \draw[thick, fill=yellow!30] (0, 0) rectangle (0.5, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (0.25, 1.0) {SOF};
+    \node[align=center, font=\tiny] at (0.25, 0.4) {1 bit};
+    % Identifiant
+    \draw[thick, fill=stellantisblue!20] (0.5, 0) rectangle (3.0, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (1.75, 1.0) {Identifiant};
+    \node[align=center, font=\tiny] at (1.75, 0.4) {11 bits};
+    % RTR
+    \draw[thick, fill=green!20] (3.0, 0) rectangle (3.5, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (3.25, 1.0) {RTR};
+    \node[align=center, font=\tiny] at (3.25, 0.4) {1 bit};
+    % Controle
+    \draw[thick, fill=orange!20] (3.5, 0) rectangle (5.0, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (4.25, 1.0) {Ctrl};
+    \node[align=center, font=\tiny] at (4.25, 0.4) {6 bits};
+    % Donnees
+    \draw[thick, fill=red!15] (5.0, 0) rectangle (9.0, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (7.0, 1.0) {Données};
+    \node[align=center, font=\tiny] at (7.0, 0.4) {0--8 octets};
+    % CRC
+    \draw[thick, fill=purple!20] (9.0, 0) rectangle (11.0, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (10.0, 1.0) {CRC};
+    \node[align=center, font=\tiny] at (10.0, 0.4) {16 bits};
+    % ACK
+    \draw[thick, fill=cyan!20] (11.0, 0) rectangle (11.5, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (11.25, 1.0) {ACK};
+    \node[align=center, font=\tiny] at (11.25, 0.4) {2 bits};
+    % EOF
+    \draw[thick, fill=gray!20] (11.5, 0) rectangle (12.5, 1.5);
+    \node[align=center, font=\tiny\bfseries] at (12.0, 1.0) {EOF};
+    \node[align=center, font=\tiny] at (12.0, 0.4) {7 bits};
 \end{tikzpicture}
 \caption{Structure d'une trame CAN 2.0A standard.}
 \label{fig:can_frame}

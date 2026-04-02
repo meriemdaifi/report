@@ -112,7 +112,7 @@ Le test \keyword{MIL} (\textit{Model-in-the-Loop}) est la première phase de val
 ]
     \node[block=orange!15] (model) {Modèle\\Algorithmique\\(MATLAB/Simulink)};
     \node[block=blue!15, right=2cm of model] (plant) {Modèle de\\l'Environnement\\(Plant Model)};
-    \node[block=green!15, below=1.5cm of $(model)!0.5!(plant)$] (result) {Résultats\\de Simulation};
+    \node[block=green!15, below=2cm of model] (result) {Résultats\\de Simulation};
     
     \draw[arrow] (model) -- node[above, font=\tiny] {signaux} (plant);
     \draw[arrow] (plant) -- node[above, font=\tiny] {feedback} (model);
@@ -145,7 +145,7 @@ Le test \keyword{SIL} (\textit{Software-in-the-Loop}) intègre le code logiciel 
 ]
     \node[block=red!15] (code) {Code Logiciel\\Réel\\(Python/PyTorch)};
     \node[block=blue!15, right=2cm of code] (sim) {Environnement\\Simulé\\(Images de test)};
-    \node[block=green!15, below=1.5cm of $(code)!0.5!(sim)$] (result) {Résultats\\de Test};
+    \node[block=green!15, below=2cm of code] (result) {Résultats\\de Test};
     
     \draw[arrow] (sim) -- node[above, font=\tiny] {images} (code);
     \draw[arrow] (code) -- node[below, font=\tiny] {décisions} (sim);
