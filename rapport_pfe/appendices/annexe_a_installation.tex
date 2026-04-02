@@ -1,0 +1,146 @@
+% ============================================================
+% ANNEXE A : GUIDE D'INSTALLATION
+% ============================================================
+
+\chapter{Guide d'Installation et de Déploiement}
+
+\section{Prérequis Système}
+
+\subsection{Configuration Minimale}
+
+\begin{table}[H]
+\centering
+\caption{Configuration minimale requise.}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Composant} & \textbf{Exigence minimale} \\
+\hline
+Système d'exploitation & Ubuntu 20.04+ / Windows 10+ / Raspberry Pi OS \\
+\hline
+Python & 3.10 ou supérieur \\
+\hline
+RAM & 4 Go minimum (8 Go recommandé) \\
+\hline
+Espace disque & 2 Go minimum \\
+\hline
+Caméra & Compatible UVC (USB Video Class) \\
+\hline
+GPU (optionnel) & NVIDIA avec CUDA 11.0+ pour l'entraînement \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Installation sur PC (Développement)}
+
+\begin{lstlisting}[style=pythonstyle, caption={Procédure d'installation complète.}, language={}]
+# 1. Cloner le projet
+git clone https://github.com/meriemdaifi/dms-project.git
+cd dms-project
+
+# 2. Creer un environnement virtuel
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# 3. Installer les dependances Python
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 4. Verifier l'installation
+python -c "import cv2; print(f'OpenCV: {cv2.__version__}')"
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+
+# 5. Lancer les tests unitaires
+python -m unittest tests.test_dms -v
+
+# 6. Lancer la simulation principale
+python main.py
+
+# 7. Lancer un scenario specifique
+python main.py --scenario attentive
+python main.py --scenario fatigued
+python main.py --scenario distracted
+python main.py --scenario mixed
+\end{lstlisting}
+
+\section{Installation sur Raspberry Pi (Prototype)}
+
+\begin{lstlisting}[style=pythonstyle, caption={Installation sur Raspberry Pi.}, language={}]
+# 1. Mise a jour du systeme
+sudo apt update && sudo apt upgrade -y
+
+# 2. Installation des dependances systeme
+sudo apt install -y python3-pip python3-venv
+sudo apt install -y libopencv-dev python3-opencv
+sudo apt install -y libatlas-base-dev libjasper-dev
+sudo apt install -y libhdf5-dev libhdf5-serial-dev
+
+# 3. Installation des outils GPIO et CAN
+sudo apt install -y python3-rpi.gpio
+sudo apt install -y can-utils
+sudo pip3 install python-can
+
+# 4. Configuration de l'interface CAN (MCP2515)
+# Ajouter dans /boot/config.txt :
+# dtoverlay=mcp2515-can0,oscillator=8000000,interrupt=25
+# dtoverlay=spi-bcm2835-overlay
+
+# 5. Activation de l'interface CAN
+sudo ip link set can0 up type can bitrate 500000
+
+# 6. Cloner et installer le projet
+git clone https://github.com/meriemdaifi/dms-project.git
+cd dms-project
+pip3 install -r requirements_rpi.txt
+
+# 7. Lancer le systeme DMS
+python3 main.py --mode robot --camera 0
+\end{lstlisting}
+
+\section{Configuration du Module CAN}
+
+\subsection{Câblage MCP2515 -- Raspberry Pi}
+
+\begin{table}[H]
+\centering
+\caption{Connexions MCP2515 $\leftrightarrow$ Raspberry Pi GPIO.}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|l|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{MCP2515} & \textbf{Raspberry Pi} & \textbf{Description} \\
+\hline
+VCC & Pin 2 (5V) & Alimentation \\
+\hline
+GND & Pin 6 (GND) & Masse \\
+\hline
+CS & Pin 24 (GPIO 8 / CE0) & Chip Select SPI \\
+\hline
+SO & Pin 21 (GPIO 9 / MISO) & SPI Master In Slave Out \\
+\hline
+SI & Pin 19 (GPIO 10 / MOSI) & SPI Master Out Slave In \\
+\hline
+SCK & Pin 23 (GPIO 11 / SCLK) & Horloge SPI \\
+\hline
+INT & Pin 22 (GPIO 25) & Interruption \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Lancement des Simulations MATLAB}
+
+\begin{lstlisting}[style=matlabstyle, caption={Lancement de la simulation MATLAB.}]
+% Ouvrir MATLAB et naviguer vers le dossier du projet
+cd('chemin/vers/dms-project/matlab')
+
+% Lancer la simulation complete
+dms_simulation
+
+% Ou ouvrir le modele Simulink
+open_system('dms_simulink_model')
+
+% Lancer la simulation Simulink
+sim('dms_simulink_model', 120)  % 120 secondes
+\end{lstlisting}

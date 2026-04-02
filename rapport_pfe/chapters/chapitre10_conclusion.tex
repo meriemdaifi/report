@@ -1,0 +1,132 @@
+% ============================================================
+% CHAPITRE 10 : CONCLUSION ET PERSPECTIVES
+% ============================================================
+
+\chapter{Conclusion et Perspectives}
+
+\section{Conclusion}
+
+Ce projet de fin d'études, réalisé au sein d'\textbf{Expleo Group} pour le compte de \textbf{Stellantis}, a permis de concevoir, implémenter et valider un \keyword{système de surveillance du conducteur (DMS)} complet, depuis la spécification jusqu'au prototypage matériel.
+
+\subsection{Synthèse des Réalisations}
+
+Les principales réalisations de ce projet sont :
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Conception d'une architecture modulaire} : Le système DMS a été décomposé en 6 modules fonctionnels (acquisition, détection, estimation de pose, analyse comportementale, logique ECU, alertes) avec des interfaces clairement définies et des protocoles de communication standardisés (CAN, UART).
+    
+    \item \textbf{Développement de modèles CNN} : Deux réseaux de neurones convolutifs ont été conçus et implémentés :
+    \begin{itemize}
+        \item \textbf{FaceDetectionCNN} (105\,778 paramètres) pour la validation de la détection de visage
+        \item \textbf{EyeStateCNN} (388\,578 paramètres) pour la classification de l'état des yeux
+    \end{itemize}
+    
+    \item \textbf{Implémentation d'algorithmes de vision} :
+    \begin{itemize}
+        \item Pipeline de détection combinant cascade de Haar et CNN
+        \item Estimation de la pose de la tête par résolution PnP
+        \item Calcul des indicateurs PERCLOS, fréquence de clignement et EAR
+    \end{itemize}
+    
+    \item \textbf{Logique décisionnelle ECU} : Machine à états à 4 niveaux d'alerte (NONE, WARNING, CRITICAL, EMERGENCY) avec hystérésis pour éviter les oscillations.
+    
+    \item \textbf{Modélisation MATLAB/Simulink} : Reproduction complète du système sous forme de blocs Simulink avec machine à états Stateflow, validant la phase MIL du cycle en V.
+    
+    \item \textbf{Prototypage robot} : Réalisation d'un prototype matériel à base de Raspberry Pi 4 intégrant caméra, module CAN (MCP2515), actionneurs (LED, buzzer, servo-moteur) et écran LCD, pour un coût total de \textbf{161 €}.
+    
+    \item \textbf{Validation exhaustive} : 34 tests unitaires, 4 scénarios de validation, concordance Python/MATLAB $< 2\%$, latence bout-en-bout de 29.2 ms (objectif : 100 ms).
+\end{enumerate}
+
+\subsection{Respect de la Méthodologie}
+
+Le projet a suivi rigoureusement le \textbf{cycle en V} automobile :
+
+\begin{itemize}
+    \item \textbf{Branche descendante} : Spécification (QQOQCP), conception architecturale, conception détaillée, implémentation
+    \item \textbf{Branche ascendante} : Tests unitaires (34/34), validation SIL (code Python), validation MIL (MATLAB/Simulink), validation HIL (prototype robot)
+\end{itemize}
+
+La méthodologie a été enrichie par l'approche QQOQCP pour le cadrage du projet et par les pratiques de test et validation d'Expleo Group.
+
+\subsection{Résultats Clés}
+
+\begin{table}[H]
+\centering
+\caption{Résumé des résultats clés du projet.}
+\label{tab:key_results}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|X|c|c|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Indicateur} & \textbf{Objectif} & \textbf{Résultat} \\
+\hline
+Détection correcte du conducteur attentif & $> 90\%$ & \cellcolor{green!20} $> 95\%$ \\
+\hline
+Détection de la fatigue progressive & Oui & \cellcolor{green!20} Oui \\
+\hline
+Détection de la distraction & Oui & \cellcolor{green!20} Oui \\
+\hline
+Taux de faux positifs & $\leq 5\%$ & \cellcolor{green!20} $\sim 1.7\%$ \\
+\hline
+Latence bout-en-bout & $\leq 100$ ms & \cellcolor{green!20} 29.2 ms \\
+\hline
+Tests unitaires réussis & 100\% & \cellcolor{green!20} 34/34 \\
+\hline
+Concordance MIL/SIL & $< 5\%$ & \cellcolor{green!20} $< 2\%$ \\
+\hline
+Coût du prototype & $\leq 200$ € & \cellcolor{green!20} 161 € \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Apport Personnel et Professionnel}
+
+Ce projet m'a permis de développer des compétences dans des domaines variés :
+
+\begin{itemize}
+    \item \textbf{Deep learning} : Conception, entraînement et optimisation de CNN avec PyTorch
+    \item \textbf{Vision par ordinateur} : Traitement d'images avec OpenCV, détection d'objets, estimation de pose
+    \item \textbf{Systèmes embarqués} : Programmation sur Raspberry Pi, GPIO, communication CAN/UART
+    \item \textbf{Automobile} : Normes ISO 26262, protocole CAN, architecture AUTOSAR, cycle en V
+    \item \textbf{Simulation} : Modélisation MATLAB/Simulink, machine à états Stateflow
+    \item \textbf{Méthodologie} : Approche de test et validation industrielle (SIL, MIL, HIL)
+    \item \textbf{Gestion de projet} : Planification, documentation, reporting
+\end{itemize}
+
+\section{Perspectives}
+
+\subsection{Perspectives à Court Terme}
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Entraînement sur données réelles} : Utiliser les datasets CK+, WIDER FACE et NTHU-DDD pour améliorer la robustesse des CNN.
+    \item \textbf{Détection de bâillements} : Intégrer l'analyse du MAR (\textit{Mouth Aspect Ratio}) pour une détection de fatigue plus complète.
+    \item \textbf{Optimisation par quantification} : Déployer le modèle en INT8 pour réduire la latence de 60\%.
+    \item \textbf{Tests en conditions réelles} : Valider le système en conditions de conduite réelle (éclairage variable, port de lunettes, mouvement).
+\end{enumerate}
+
+\subsection{Perspectives à Moyen Terme}
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Architecture MobileNetV2} : Remplacer le CNN actuel par une architecture légère pour le déploiement ECU réel.
+    \item \textbf{Modèle temporel} : Ajouter une couche LSTM pour capturer les dynamiques temporelles de la fatigue.
+    \item \textbf{Fusion multi-capteurs} : Combiner la vision avec des données physiologiques (EEG, ECG) et véhiculaires (trajectoire, volant).
+    \item \textbf{Accélération matérielle} : Utiliser un NPU (Google Coral, Hailo-8) pour atteindre $> 60$ FPS.
+\end{enumerate}
+
+\subsection{Perspectives à Long Terme}
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Intégration AUTOSAR} : Développer un composant logiciel AUTOSAR conforme pour l'intégration dans les ECU de production Stellantis.
+    \item \textbf{Communication V2X} : Partager les données de fatigue avec l'infrastructure routière et les véhicules voisins.
+    \item \textbf{Personnalisation du conducteur} : Adapter les seuils de détection au profil du conducteur par apprentissage fédéré.
+    \item \textbf{Prédiction anticipée} : Utiliser des modèles prédictifs pour anticiper la fatigue avant qu'elle ne se manifeste cliniquement.
+    \item \textbf{Certification ISO 26262} : Qualifier le système au niveau ASIL B pour la certification automobile.
+\end{enumerate}
+
+\vspace{1cm}
+
+\begin{center}
+\fbox{\parbox{0.85\textwidth}{\centering\vspace{0.3cm}
+\textit{Ce projet démontre qu'il est possible de concevoir un système DMS performant, fiable et à faible coût, ouvrant la voie à une intégration dans les véhicules de nouvelle génération de Stellantis. La combinaison de techniques de deep learning, de vision par ordinateur et de méthodologies de test automobile constitue une approche complète et industriellement viable.}
+\vspace{0.3cm}}}
+\end{center}

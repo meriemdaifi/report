@@ -1,0 +1,480 @@
+% ============================================================
+% CHAPITRE 7 : PROTOTYPAGE ROBOT
+% ============================================================
+
+\chapter{Prototypage Robot}
+
+\section{Introduction}
+
+Ce chapitre présente la conception et la réalisation d'un \keyword{prototype robotique} démontrant le fonctionnement complet du système DMS en conditions réelles. Ce prototype constitue la phase \keyword{HIL} (\textit{Hardware-in-the-Loop}) du cycle en V et permet de valider l'intégration matérielle, la communication entre composants et les performances en temps réel.
+
+\section{Objectifs du Prototype}
+
+Le prototype vise à démontrer :
+\begin{enumerate}[leftmargin=2cm]
+    \item L'acquisition vidéo en temps réel du visage du conducteur
+    \item Le traitement CNN embarqué pour la détection visage/yeux
+    \item Le calcul des indicateurs comportementaux (PERCLOS, scores)
+    \item La prise de décision ECU avec génération d'alertes
+    \item La communication entre les composants via CAN/UART
+    \item La réponse physique des actionneurs (LED, buzzer, servo-moteurs)
+    \item L'exécution de scénarios de test reproductibles
+\end{enumerate}
+
+\section{Cahier des Charges du Prototype}
+
+\subsection{Exigences Fonctionnelles}
+
+\begin{table}[H]
+\centering
+\caption{Exigences fonctionnelles du prototype robot.}
+\label{tab:req_fonctionnelles}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|c|X|c|c|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{ID} & \textbf{Description} & \textbf{Priorité} & \textbf{Statut} \\
+\hline
+RF-01 & Acquérir un flux vidéo à $\geq$ 15 FPS & Haute & $\checkmark$ \\
+\hline
+RF-02 & Détecter le visage avec une précision $\geq$ 95\% & Haute & $\checkmark$ \\
+\hline
+RF-03 & Classifier l'état des yeux (ouvert/fermé) & Haute & $\checkmark$ \\
+\hline
+RF-04 & Calculer le PERCLOS en temps réel & Haute & $\checkmark$ \\
+\hline
+RF-05 & Estimer la pose de la tête (yaw, pitch, roll) & Moyenne & $\checkmark$ \\
+\hline
+RF-06 & Générer 4 niveaux d'alerte & Haute & $\checkmark$ \\
+\hline
+RF-07 & Communiquer via CAN/UART & Haute & $\checkmark$ \\
+\hline
+RF-08 & Activer les alertes physiques (LED, buzzer) & Haute & $\checkmark$ \\
+\hline
+RF-09 & Afficher les résultats sur un écran LCD & Moyenne & $\checkmark$ \\
+\hline
+RF-10 & Supporter au moins 3 scénarios de test & Haute & $\checkmark$ \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Exigences Non-Fonctionnelles}
+
+\begin{table}[H]
+\centering
+\caption{Exigences non-fonctionnelles du prototype.}
+\label{tab:req_non_fonctionnelles}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|c|X|c|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{ID} & \textbf{Description} & \textbf{Valeur cible} \\
+\hline
+RNF-01 & Latence bout-en-bout (caméra $\rightarrow$ alerte) & $\leq 200$ ms \\
+\hline
+RNF-02 & Consommation électrique totale & $\leq 15$ W \\
+\hline
+RNF-03 & Température de fonctionnement & $0°C$ à $50°C$ \\
+\hline
+RNF-04 & Encombrement maximal & $30 \times 20 \times 15$ cm \\
+\hline
+RNF-05 & Autonomie sur batterie & $\geq 2$ heures \\
+\hline
+RNF-06 & Temps de démarrage & $\leq 30$ secondes \\
+\hline
+RNF-07 & Fiabilité (disponibilité) & $\geq 99\%$ \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Architecture Matérielle}
+
+\subsection{Composants du Prototype}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    hw/.style={rectangle, draw, thick, fill=#1, text width=3cm, text centered, minimum height=1.5cm, rounded corners=5pt, font=\small\bfseries},
+    conn/.style={<->, >=stealth, very thick, color=#1},
+    label/.style={font=\tiny\bfseries, fill=white, inner sep=1pt}
+]
+    % ECU Principal
+    \node[hw=red!20] (rpi) at (6, 4) {Raspberry Pi 4\\(ECU Principal)\\4 Go RAM};
+    
+    % Capteurs
+    \node[hw=blue!15] (cam) at (0, 6) {Caméra USB\\HD 720p\\30 FPS};
+    \node[hw=blue!15] (ir_cam) at (0, 2) {LED IR\\940nm\\(éclairage nuit)};
+    
+    % Module CAN
+    \node[hw=orange!20] (can) at (6, 0) {Module CAN\\MCP2515\\(SPI)};
+    
+    % Actionneurs
+    \node[hw=green!20] (led_r) at (12, 6) {LED Rouge\\(Alerte critique)};
+    \node[hw=alertyellow!40] (led_o) at (12, 4) {LED Orange\\(Warning)};
+    \node[hw=green!20] (buzzer) at (12, 2) {Buzzer\\Piézoélectrique};
+    \node[hw=purple!20] (servo) at (12, 0) {Servo-moteur\\(Frein simulé)};
+    
+    % Affichage
+    \node[hw=cyan!20] (lcd) at (0, -1) {Écran LCD\\I$^2$C 16x2};
+    
+    % Connexions
+    \draw[conn=blue] (cam) -- node[label] {USB 2.0} (rpi);
+    \draw[conn=blue!50] (ir_cam) -- node[label] {GPIO} (rpi);
+    \draw[conn=red] (rpi) -- node[label] {SPI} (can);
+    \draw[conn=green!60!black] (rpi) -- node[label] {GPIO} (led_r);
+    \draw[conn=orange] (rpi) -- node[label] {GPIO} (led_o);
+    \draw[conn=green!60!black] (rpi) -- node[label] {GPIO} (buzzer);
+    \draw[conn=purple] (rpi) -- node[label] {PWM} (servo);
+    \draw[conn=cyan] (rpi) -- node[label, pos=0.3] {I$^2$C} (lcd);
+    
+\end{tikzpicture}
+\caption{Architecture matérielle du prototype robot DMS.}
+\label{fig:robot_hardware}
+\end{figure}
+
+\subsection{Liste des Composants (BOM)}
+
+\begin{table}[H]
+\centering
+\caption{Bill of Materials (BOM) du prototype robot.}
+\label{tab:bom}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{|c|l|c|c|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{\#} & \textbf{Composant} & \textbf{Qté} & \textbf{Prix (€)} & \textbf{Spécifications} \\
+\hline
+1 & Raspberry Pi 4 Model B & 1 & 75 & 4 Go RAM, quad-core ARM Cortex-A72 1.5 GHz \\
+\hline
+2 & Caméra USB HD & 1 & 25 & 720p, 30 FPS, compatible UVC \\
+\hline
+3 & Module CAN MCP2515 & 1 & 8 & Interface SPI, CAN 2.0B, 1 Mbit/s \\
+\hline
+4 & LED IR 940nm & 2 & 3 & Pour éclairage nocturne \\
+\hline
+5 & LED RGB & 3 & 2 & Indicateurs visuels (vert, orange, rouge) \\
+\hline
+6 & Buzzer piézoélectrique & 1 & 2 & 85 dB, 2.3 kHz \\
+\hline
+7 & Servo-moteur SG90 & 1 & 5 & Couple 1.8 kg·cm, 180° \\
+\hline
+8 & Écran LCD 16x2 I$^2$C & 1 & 6 & Affichage état et alertes \\
+\hline
+9 & Module d'alimentation & 1 & 10 & 5V/3A, régulateur \\
+\hline
+10 & Carte SD 32 Go & 1 & 10 & Classe 10, pour OS et données \\
+\hline
+11 & Châssis et câblage & 1 & 15 & Boîtier imprimé 3D, câbles Dupont \\
+\hline
+\multicolumn{3}{|r|}{\textbf{Coût total estimé}} & \textbf{161 €} & \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Spécifications du Raspberry Pi 4}
+
+\begin{table}[H]
+\centering
+\caption{Spécifications techniques du Raspberry Pi 4 Model B.}
+\label{tab:rpi_specs}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|l|l|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Caractéristique} & \textbf{Valeur} \\
+\hline
+Processeur & Broadcom BCM2711, quad-core Cortex-A72, 1.5 GHz \\
+\hline
+RAM & 4 Go LPDDR4-3200 \\
+\hline
+GPU & VideoCore VI, OpenGL ES 3.1 \\
+\hline
+Connectivité & Wi-Fi 802.11ac, Bluetooth 5.0, Gigabit Ethernet \\
+\hline
+GPIO & 40 broches (26 GPIO, SPI, I$^2$C, UART, PWM) \\
+\hline
+USB & 2 $\times$ USB 3.0, 2 $\times$ USB 2.0 \\
+\hline
+Alimentation & 5V/3A via USB-C \\
+\hline
+Système d'exploitation & Raspberry Pi OS (Debian-based) \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Architecture Logicielle du Robot}
+
+\subsection{Diagramme de Flux}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    block/.style={rectangle, draw, fill=#1, text width=3cm, text centered, minimum height=1cm, rounded corners=3pt, font=\small},
+    decision/.style={diamond, draw, fill=yellow!20, aspect=2, text width=1.5cm, text centered, font=\tiny},
+    arrow/.style={->, >=stealth, thick},
+    node distance=1.2cm
+]
+    \node[block=blue!15] (start) {Démarrage\\Système};
+    \node[block=gray!15, below=of start] (init) {Initialisation\\(Caméra, GPIO, CAN)};
+    \node[block=blue!20, below=of init] (capture) {Capture\\Image};
+    \node[block=orange!15, below=of capture] (detect) {Détection\\CNN};
+    \node[block=purple!15, below=of detect] (analyse) {Analyse\\Comportementale};
+    \node[block=red!15, below=of analyse] (ecu) {Décision\\ECU};
+    \node[decision, below=of ecu] (alert_q) {Alerte\\?};
+    \node[block=green!20, right=3cm of alert_q] (actuate) {Activation\\Actionneurs};
+    \node[block=cyan!15, below=of alert_q] (display) {Mise à jour\\Affichage};
+    \node[block=orange!20, left=3cm of alert_q] (can_send) {Envoi\\CAN};
+    
+    \draw[arrow] (start) -- (init);
+    \draw[arrow] (init) -- (capture);
+    \draw[arrow] (capture) -- (detect);
+    \draw[arrow] (detect) -- (analyse);
+    \draw[arrow] (analyse) -- (ecu);
+    \draw[arrow] (ecu) -- (alert_q);
+    \draw[arrow] (alert_q) -- node[above, font=\tiny] {oui} (actuate);
+    \draw[arrow] (alert_q) -- (display);
+    \draw[arrow] (alert_q) -- node[above, font=\tiny] {CAN} (can_send);
+    \draw[arrow] (display) -| ([xshift=-4cm]capture.west) -- (capture);
+    
+\end{tikzpicture}
+\caption{Diagramme de flux du logiciel embarqué du robot.}
+\label{fig:robot_software_flow}
+\end{figure}
+
+\subsection{Communication CAN sur le Prototype}
+
+L'interface CAN utilise le module \textbf{MCP2515} connecté au Raspberry Pi via SPI :
+
+\begin{lstlisting}[style=pythonstyle, caption={Interface CAN pour le prototype robot.}, label={lst:can_interface}]
+import can
+import struct
+
+class CANInterface:
+    """Interface CAN pour la communication DMS."""
+    
+    # Identifiants CAN du systeme DMS
+    DMS_STATUS_ID = 0x300
+    DMS_ALERT_ID = 0x301
+    DMS_HEAD_POSE_ID = 0x302
+    DMS_EYE_STATE_ID = 0x303
+    
+    def __init__(self, channel='can0', bitrate=500000):
+        """
+        Initialise l'interface CAN.
+        
+        Args:
+            channel: Interface CAN Linux (can0)
+            bitrate: Debit CAN en bit/s
+        """
+        self.bus = can.interface.Bus(
+            channel=channel,
+            interface='socketcan',
+            bitrate=bitrate
+        )
+    
+    def send_dms_status(self, alert_level, fatigue_score,
+                        distraction_score, driver_state,
+                        perclos):
+        """
+        Envoie le statut DMS sur le bus CAN.
+        
+        Format: [alert, fatigue_h, fatigue_l, 
+                 distraction_h, distraction_l,
+                 state, perclos_h, perclos_l]
+        """
+        data = struct.pack('>BHHBH',
+            alert_level,
+            int(fatigue_score * 100),
+            int(distraction_score * 100),
+            driver_state,
+            int(perclos * 100)
+        )
+        
+        msg = can.Message(
+            arbitration_id=self.DMS_STATUS_ID,
+            data=data,
+            is_extended_id=False
+        )
+        self.bus.send(msg)
+    
+    def send_alert(self, alert_type, priority, 
+                   duration_ms):
+        """Envoie une commande d'alerte sur le bus CAN."""
+        data = struct.pack('>BBH',
+            alert_type, priority, duration_ms
+        )
+        
+        msg = can.Message(
+            arbitration_id=self.DMS_ALERT_ID,
+            data=data,
+            is_extended_id=False
+        )
+        self.bus.send(msg)
+    
+    def close(self):
+        """Ferme l'interface CAN."""
+        self.bus.shutdown()
+\end{lstlisting}
+
+\subsection{Contrôle des Actionneurs}
+
+\begin{lstlisting}[style=pythonstyle, caption={Contrôle des actionneurs du robot.}, label={lst:actuators}]
+import RPi.GPIO as GPIO
+import time
+
+class ActuatorController:
+    """Controleur des actionneurs du prototype DMS."""
+    
+    # Configuration des broches GPIO
+    LED_GREEN = 17    # LED verte (normal)
+    LED_ORANGE = 27   # LED orange (warning)
+    LED_RED = 22      # LED rouge (critical/emergency)
+    BUZZER_PIN = 23   # Buzzer piezoelectrique
+    SERVO_PIN = 18    # Servo-moteur (PWM)
+    
+    def __init__(self):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        
+        # Configuration des sorties
+        for pin in [self.LED_GREEN, self.LED_ORANGE,
+                    self.LED_RED, self.BUZZER_PIN]:
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, GPIO.LOW)
+        
+        # Configuration PWM pour le servo
+        GPIO.setup(self.SERVO_PIN, GPIO.OUT)
+        self.servo = GPIO.PWM(self.SERVO_PIN, 50)  # 50Hz
+        self.servo.start(0)
+    
+    def set_alert_level(self, level):
+        """
+        Active les actionneurs selon le niveau d'alerte.
+        
+        Args:
+            level: 0=NONE, 2=WARNING, 3=CRITICAL, 
+                   4=EMERGENCY
+        """
+        # Reset toutes les sorties
+        self._reset_all()
+        
+        if level == 0:  # Normal
+            GPIO.output(self.LED_GREEN, GPIO.HIGH)
+        
+        elif level == 2:  # Warning
+            GPIO.output(self.LED_ORANGE, GPIO.HIGH)
+        
+        elif level == 3:  # Critical
+            GPIO.output(self.LED_RED, GPIO.HIGH)
+            GPIO.output(self.BUZZER_PIN, GPIO.HIGH)
+        
+        elif level == 4:  # Emergency
+            GPIO.output(self.LED_RED, GPIO.HIGH)
+            GPIO.output(self.BUZZER_PIN, GPIO.HIGH)
+            self._activate_brake()
+    
+    def _activate_brake(self):
+        """Simule le freinage d'urgence via servo."""
+        # Rotation du servo a 90 degres
+        duty = 2.5 + (90 / 180) * 10  # ~7.5%
+        self.servo.ChangeDutyCycle(duty)
+    
+    def _reset_all(self):
+        """Desactive tous les actionneurs."""
+        for pin in [self.LED_GREEN, self.LED_ORANGE,
+                    self.LED_RED, self.BUZZER_PIN]:
+            GPIO.output(pin, GPIO.LOW)
+        self.servo.ChangeDutyCycle(0)
+    
+    def cleanup(self):
+        """Libere les ressources GPIO."""
+        self._reset_all()
+        self.servo.stop()
+        GPIO.cleanup()
+\end{lstlisting}
+
+\section{Scénarios de Test du Prototype}
+
+\subsection{Protocole de Test}
+
+Chaque scénario de test suit le protocole suivant :
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Préparation} : Positionnement du sujet face à la caméra, vérification du système
+    \item \textbf{Calibration} : Phase de 10 secondes pour la calibration initiale
+    \item \textbf{Exécution} : Réalisation du scénario pendant la durée définie
+    \item \textbf{Enregistrement} : Sauvegarde des logs (scores, alertes, timestamps)
+    \item \textbf{Analyse} : Traitement post-hoc des résultats
+\end{enumerate}
+
+\subsection{Scénarios Définis}
+
+\begin{table}[H]
+\centering
+\caption{Scénarios de test du prototype robot.}
+\label{tab:robot_scenarios}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|c|l|c|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{\#} & \textbf{Scénario} & \textbf{Durée} & \textbf{Description} \\
+\hline
+1 & Conducteur attentif & 120s & Regard vers l'avant, clignements normaux \\
+\hline
+2 & Fatigue progressive & 120s & Fermeture progressive des yeux (4 phases) \\
+\hline
+3 & Distraction latérale & 120s & Regard vers la droite/gauche avec intensité croissante \\
+\hline
+4 & Scénario mixte & 180s & Alternance attention $\rightarrow$ fatigue $\rightarrow$ distraction $\rightarrow$ récupération \\
+\hline
+5 & Conditions dégradées & 60s & Faible éclairage, port de lunettes \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Limites du Prototype}
+
+\subsection{Limites Matérielles}
+
+\begin{table}[H]
+\centering
+\caption{Limites matérielles du prototype et solutions envisagées.}
+\label{tab:limites_materielles}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|X|X|X|}
+\hline
+\rowcolor{alertorange!20}
+\textbf{Limite} & \textbf{Impact} & \textbf{Solution envisagée} \\
+\hline
+Puissance de calcul limitée du Raspberry Pi (vs ECU automobile) & FPS réduit ($\sim$15 vs 30 visé), latence plus élevée & Optimisation CNN (quantification INT8), utilisation du NPU Coral \\
+\hline
+Caméra USB standard (vs caméra IR automobile) & Performances dégradées en faible éclairage & Ajout de LED IR 940nm pour éclairage nocturne \\
+\hline
+Module CAN via SPI (vs CAN natif) & Latence supplémentaire sur le bus CAN & Acceptable pour le prototype, CAN natif sur ECU réel \\
+\hline
+Absence de vibration du volant & Alerte haptique non simulée & Ajout d'un moteur vibrant pour simulation \\
+\hline
+Servo-moteur vs système de freinage réel & Simulation simplifiée du freinage & Suffisant pour démonstration, pas de freinage réel \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Limites Logicielles}
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Modèle CNN non entraîné sur données réelles} : Les CNN utilisent des poids aléatoires ou pré-initialisés. L'entraînement sur des datasets réels (CK+, WIDER FACE) améliorerait significativement la précision.
+    \item \textbf{Pas de fusion multi-capteurs} : Le prototype repose uniquement sur la caméra. L'intégration de capteurs physiologiques (EEG, ECG) améliorerait la robustesse.
+    \item \textbf{Détection de bâillements absente} : L'analyse de l'ouverture de la bouche n'est pas implémentée dans cette version.
+    \item \textbf{Pas de suivi temporel avancé} : Le système traite chaque image indépendamment, sans modèle de suivi temporel (type LSTM ou Transformer).
+\end{itemize}
+
+\section{Synthèse}
+
+Le prototype robot développé démontre avec succès :
+\begin{itemize}
+    \item L'intégration complète du pipeline DMS sur matériel embarqué
+    \item La communication CAN/UART entre composants
+    \item La réponse physique des actionneurs selon le niveau d'alerte
+    \item La validité de l'approche HIL pour la validation du système
+\end{itemize}
+
+Le coût total du prototype (\textbf{161 €}) est très compétitif par rapport aux solutions commerciales, tout en offrant une plateforme flexible et extensible pour la recherche et le développement.
