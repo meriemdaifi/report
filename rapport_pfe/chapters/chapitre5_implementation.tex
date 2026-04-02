@@ -1,0 +1,978 @@
+% ============================================================
+% CHAPITRE 5 : IMPLÉMENTATION
+% ============================================================
+
+\chapter{Implémentation}
+
+\section{Introduction}
+
+Ce chapitre détaille l'implémentation logicielle du système DMS en Python, incluant l'entraînement des modèles CNN, les algorithmes de vision par ordinateur et la logique de traitement. Chaque composant est présenté avec son code source, les algorithmes associés et les équations utilisées.
+
+\section{Environnement de Développement}
+
+\subsection{Outils et Technologies}
+
+\begin{table}[H]
+\centering
+\caption{Environnement de développement du système DMS.}
+\label{tab:dev_env}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Outil} & \textbf{Version} & \textbf{Rôle} \\
+\hline
+Python & 3.10+ & Langage principal de développement \\
+\hline
+PyTorch & $\geq 2.0.0$ & Framework de deep learning pour les CNN \\
+\hline
+OpenCV & $\geq 4.8.0$ & Vision par ordinateur (détection, prétraitement) \\
+\hline
+NumPy & $\geq 1.24.0$ & Calcul numérique (matrices, algèbre linéaire) \\
+\hline
+Pandas & $\geq 2.0.0$ & Analyse et manipulation de données \\
+\hline
+Matplotlib & $\geq 3.7.0$ & Visualisation des résultats et graphiques \\
+\hline
+dlib & $\geq 19.24.0$ & Détection de landmarks faciaux \\
+\hline
+SciPy & $\geq 1.10.0$ & Calculs scientifiques (rotation, distances) \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Structure du Projet}
+
+\begin{lstlisting}[style=pythonstyle, caption={Structure du projet DMS.}, label={lst:project_structure}, language={}]
+dms-project/
+|-- src/
+|   |-- __init__.py                 # Module principal
+|   |-- video_acquisition.py        # Acquisition video
+|   |-- face_eye_detection.py       # Detection visage/yeux
+|   |-- head_pose.py                # Estimation pose tete
+|   |-- behavioral_analysis.py      # Analyse comportementale
+|   |-- ecu_decision.py             # Logique ECU
+|   |-- scenarios.py                # Scenarios de test
+|   |-- visualization.py            # Visualisation
+|-- tests/
+|   |-- test_dms.py                 # Tests unitaires (34 tests)
+|-- matlab/
+|   |-- dms_simulation.m            # Simulation MATLAB
+|   |-- dms_simulink_model.m        # Modele Simulink
+|   |-- simulink_model/
+|       |-- ecu_stateflow.m         # Machine a etats
+|-- main.py                         # Point d'entree
+|-- requirements.txt                # Dependances
+\end{lstlisting}
+
+\section{Implémentation du Module d'Acquisition Vidéo}
+
+\subsection{Classe VideoAcquisition}
+
+Le module d'acquisition vidéo gère la capture et le prétraitement des images :
+
+\begin{lstlisting}[style=pythonstyle, caption={Module d'acquisition vidéo.}, label={lst:video_acquisition}]
+import cv2
+import numpy as np
+
+class VideoAcquisition:
+    """Module d'acquisition video pour le systeme DMS."""
+    
+    def __init__(self, source=0, resolution=(640, 480), fps=30):
+        """
+        Initialise l'acquisition video.
+        
+        Args:
+            source: Index camera (int) ou chemin fichier (str)
+            resolution: Tuple (largeur, hauteur)
+            fps: Images par seconde
+        """
+        self.source = source
+        self.resolution = resolution
+        self.fps = fps
+        self.cap = None
+    
+    def open(self):
+        """Ouvre la source video."""
+        self.cap = cv2.VideoCapture(self.source)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+        return self.cap.isOpened()
+    
+    def read_frame(self):
+        """Lit une image de la source video."""
+        if self.cap is None:
+            return None
+        ret, frame = self.cap.read()
+        return frame if ret else None
+    
+    def preprocess(self, frame):
+        """
+        Preprocesse l'image pour la detection.
+        
+        Pipeline:
+        1. Conversion en niveaux de gris
+        2. Egalisation d'histogramme (CLAHE)
+        """
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(
+            clipLimit=2.0, 
+            tileGridSize=(8, 8)
+        )
+        enhanced = clahe.apply(gray)
+        return enhanced
+    
+    def generate_frames(self):
+        """Generateur d'images preprocessees."""
+        while True:
+            frame = self.read_frame()
+            if frame is None:
+                break
+            gray = self.preprocess(frame)
+            yield frame, gray
+    
+    def release(self):
+        """Libere les ressources."""
+        if self.cap is not None:
+            self.cap.release()
+\end{lstlisting}
+
+\subsection{Algorithme CLAHE}
+
+L'égalisation adaptative d'histogramme à contraste limité (\textit{CLAHE -- Contrast Limited Adaptive Histogram Equalization}) divise l'image en tuiles et applique une égalisation locale :
+
+\begin{equation}
+H_{\text{CLAHE}}(v, r) = \text{round}\left(\frac{\text{CDF}_r(v) - \text{CDF}_{r,\min}}{(M_r \times N_r) - \text{CDF}_{r,\min}} \times (L - 1)\right)
+\label{eq:clahe}
+\end{equation}
+
+où $r$ désigne la tuile locale et les CDF sont écrêtées au \textit{clipLimit} pour éviter l'amplification du bruit.
+
+\section{Implémentation des CNN}
+
+\subsection{EyeStateCNN -- Architecture Complète}
+
+\begin{lstlisting}[style=pythonstyle, caption={Architecture complète du EyeStateCNN.}, label={lst:eye_cnn}]
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class EyeStateCNN(nn.Module):
+    """
+    Reseau de neurones convolutif pour la classification
+    de l'etat des yeux (ouvert/ferme).
+    
+    Entree: Image 1x24x24 (niveaux de gris)
+    Sortie: 2 classes (ouvert, ferme)
+    """
+    
+    def __init__(self):
+        super().__init__()
+        # Bloc convolutif 1: 1 -> 32 filtres
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        
+        # Bloc convolutif 2: 32 -> 64 filtres
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        
+        # Bloc convolutif 3: 64 -> 128 filtres
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        
+        # Couches communes
+        self.pool = nn.MaxPool2d(2, 2)
+        self.dropout = nn.Dropout(0.5)
+        
+        # Couches entierement connectees
+        # Apres 3 couches de conv+pool: 24->12->6->3
+        # Taille: 128 * 3 * 3 = 1152
+        self.fc1 = nn.Linear(128 * 3 * 3, 256)
+        self.fc2 = nn.Linear(256, 2)
+    
+    def forward(self, x):
+        """
+        Propagation avant.
+        
+        Args:
+            x: Tensor de forme (batch, 1, 24, 24)
+        Returns:
+            Tensor de forme (batch, 2) - logits
+        """
+        # Bloc 1: Conv -> BN -> ReLU -> MaxPool
+        # (B, 1, 24, 24) -> (B, 32, 12, 12)
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        
+        # Bloc 2: Conv -> BN -> ReLU -> MaxPool
+        # (B, 32, 12, 12) -> (B, 64, 6, 6)
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        
+        # Bloc 3: Conv -> BN -> ReLU -> MaxPool
+        # (B, 64, 6, 6) -> (B, 128, 3, 3)
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        
+        # Aplatissement: (B, 128, 3, 3) -> (B, 1152)
+        x = x.view(x.size(0), -1)
+        
+        # FC1 + ReLU + Dropout: (B, 1152) -> (B, 256)
+        x = self.dropout(F.relu(self.fc1(x)))
+        
+        # FC2 (sortie): (B, 256) -> (B, 2)
+        x = self.fc2(x)
+        
+        return x
+\end{lstlisting}
+
+\subsection{FaceDetectionCNN -- Architecture Complète}
+
+\begin{lstlisting}[style=pythonstyle, caption={Architecture du FaceDetectionCNN.}, label={lst:face_cnn}]
+class FaceDetectionCNN(nn.Module):
+    """
+    CNN pour la validation des detections de visage.
+    
+    Entree: Image 1x64x64 (niveaux de gris)
+    Sortie: 2 classes (visage, non-visage)
+    """
+    
+    def __init__(self):
+        super().__init__()
+        # 4 blocs convolutifs avec profondeur croissante
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(64)
+        self.conv4 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(128)
+        
+        self.pool = nn.MaxPool2d(2, 2)
+        self.adaptive_pool = nn.AdaptiveAvgPool2d(1)
+        self.dropout = nn.Dropout(0.5)
+        
+        self.fc1 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 2)
+    
+    def forward(self, x):
+        """
+        Propagation avant.
+        
+        Flux de donnees:
+        (B,1,64,64) -> Conv1 -> (B,16,32,32) -> Conv2 -> 
+        (B,32,16,16) -> Conv3 -> (B,64,8,8) -> Conv4 -> 
+        (B,128,4,4) -> AdaptiveAvgPool -> (B,128) -> 
+        FC1 -> (B,64) -> FC2 -> (B,2)
+        """
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        x = self.pool(F.relu(self.bn4(self.conv4(x))))
+        x = self.adaptive_pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.fc2(x)
+        return x
+\end{lstlisting}
+
+\subsection{Processus d'Entraînement du CNN}
+
+\subsubsection{Fonction de Perte}
+
+L'entraînement utilise la fonction de perte \keyword{Cross-Entropy} pour la classification binaire :
+
+\begin{equation}
+\mathcal{L}_{\text{CE}} = -\frac{1}{N} \sum_{i=1}^{N} \left[ y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i) \right]
+\label{eq:cross_entropy}
+\end{equation}
+
+où $y_i \in \{0, 1\}$ est l'étiquette vraie et $\hat{y}_i = \text{softmax}(z_i)_1$ la probabilité prédite pour la classe positive.
+
+\subsubsection{Optimiseur Adam}
+
+L'optimiseur \keyword{Adam} (\textit{Adaptive Moment Estimation}) est utilisé avec les règles de mise à jour suivantes :
+
+\begin{align}
+m_t &= \beta_1 m_{t-1} + (1 - \beta_1) g_t \label{eq:adam_m} \\
+v_t &= \beta_2 v_{t-1} + (1 - \beta_2) g_t^2 \label{eq:adam_v} \\
+\hat{m}_t &= \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t = \frac{v_t}{1 - \beta_2^t} \label{eq:adam_bias} \\
+\theta_t &= \theta_{t-1} - \frac{\eta}{\sqrt{\hat{v}_t} + \epsilon} \hat{m}_t \label{eq:adam_update}
+\end{align}
+
+avec les hyperparamètres : $\eta = 0.001$, $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$.
+
+\subsubsection{Code d'Entraînement}
+
+\begin{lstlisting}[style=pythonstyle, caption={Boucle d'entraînement du CNN.}, label={lst:training}]
+def train_model(model, train_loader, val_loader, 
+                epochs=50, lr=0.001):
+    """
+    Entraine le modele CNN.
+    
+    Args:
+        model: Modele PyTorch
+        train_loader: DataLoader d'entrainement
+        val_loader: DataLoader de validation
+        epochs: Nombre d'epoques
+        lr: Taux d'apprentissage
+    """
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', patience=5, factor=0.5
+    )
+    
+    best_val_acc = 0.0
+    
+    for epoch in range(epochs):
+        # Phase d'entrainement
+        model.train()
+        train_loss = 0.0
+        correct = 0
+        total = 0
+        
+        for images, labels in train_loader:
+            optimizer.zero_grad()
+            
+            # Propagation avant
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            
+            # Retropropagation
+            loss.backward()
+            optimizer.step()
+            
+            train_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+        
+        train_acc = 100 * correct / total
+        
+        # Phase de validation
+        model.eval()
+        val_loss = 0.0
+        val_correct = 0
+        val_total = 0
+        
+        with torch.no_grad():
+            for images, labels in val_loader:
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+                _, predicted = torch.max(outputs.data, 1)
+                val_total += labels.size(0)
+                val_correct += (predicted == labels).sum().item()
+        
+        val_acc = 100 * val_correct / val_total
+        scheduler.step(val_loss)
+        
+        # Sauvegarde du meilleur modele
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            torch.save(model.state_dict(), 'best_model.pth')
+        
+        print(f'Epoch [{epoch+1}/{epochs}] '
+              f'Train Loss: {train_loss:.4f} '
+              f'Train Acc: {train_acc:.2f}% '
+              f'Val Acc: {val_acc:.2f}%')
+\end{lstlisting}
+
+\subsubsection{Rétropropagation du Gradient}
+
+La rétropropagation calcule les gradients de la fonction de perte par rapport à chaque paramètre en utilisant la règle de la chaîne :
+
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial \mathbf{W}^{(l)}} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}^{(l)}} \cdot \frac{\partial \mathbf{z}^{(l)}}{\partial \mathbf{W}^{(l)}} = \boldsymbol{\delta}^{(l)} \cdot (\mathbf{a}^{(l-1)})^T
+\label{eq:backprop}
+\end{equation}
+
+où $\boldsymbol{\delta}^{(l)}$ est l'erreur rétropropagée à la couche $l$ et $\mathbf{a}^{(l-1)}$ les activations de la couche précédente.
+
+Pour la couche de convolution :
+
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial \mathbf{W}_k^{(l)}} = \sum_{i} \mathbf{a}_i^{(l-1)} * \boldsymbol{\delta}_k^{(l)}
+\label{eq:conv_backprop}
+\end{equation}
+
+\section{Implémentation de la Détection Visage/Yeux}
+
+\subsection{Algorithme de Détection Complet}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\caption{Détection du visage et des yeux}
+\label{algo:detection}
+\KwIn{Image BGR $\mathbf{I}$ du flux vidéo}
+\KwOut{Liste de détections $\mathcal{D} = \{(bbox, \text{état\_yeux}, \text{confiance})\}$}
+
+$\mathbf{I}_{\text{gray}} \leftarrow \text{cvtColor}(\mathbf{I}, \text{BGR2GRAY})$\;
+$\mathbf{I}_{\text{eq}} \leftarrow \text{equalizeHist}(\mathbf{I}_{\text{gray}})$\;
+$\mathcal{F} \leftarrow \text{HaarCascade}(\mathbf{I}_{\text{eq}}, \text{scaleFactor}=1.3, \text{minNeighbors}=5)$\;
+$\mathcal{D} \leftarrow \emptyset$\;
+
+\ForEach{$(x, y, w, h) \in \mathcal{F}$}{
+    $\mathbf{R}_{\text{face}} \leftarrow \mathbf{I}_{\text{gray}}[y:y+h, x:x+w]$\;
+    $\mathbf{R}_{\text{resize}} \leftarrow \text{resize}(\mathbf{R}_{\text{face}}, 64 \times 64)$\;
+    $\mathbf{R}_{\text{norm}} \leftarrow \mathbf{R}_{\text{resize}} / 255.0$\;
+    $c_{\text{face}} \leftarrow \text{softmax}(\text{FaceDetectionCNN}(\mathbf{R}_{\text{norm}}))[1]$\;
+    
+    \If{$c_{\text{face}} > \tau_{\text{face}}$}{
+        $\mathcal{E} \leftarrow \text{HaarCascadeEyes}(\mathbf{R}_{\text{face}})$\;
+        
+        \ForEach{$(x_e, y_e, w_e, h_e) \in \mathcal{E}$}{
+            $\mathbf{R}_{\text{eye}} \leftarrow \mathbf{R}_{\text{face}}[y_e:y_e+h_e, x_e:x_e+w_e]$\;
+            $\mathbf{R}_{\text{eye,resize}} \leftarrow \text{resize}(\mathbf{R}_{\text{eye}}, 24 \times 24)$\;
+            $\mathbf{R}_{\text{eye,norm}} \leftarrow \mathbf{R}_{\text{eye,resize}} / 255.0$\;
+            $\text{état} \leftarrow \arg\max(\text{EyeStateCNN}(\mathbf{R}_{\text{eye,norm}}))$\;
+            $c_{\text{eye}} \leftarrow \max(\text{softmax}(\text{EyeStateCNN}(\mathbf{R}_{\text{eye,norm}})))$\;
+        }
+        
+        $\text{EAR} \leftarrow \frac{\|p_2 - p_6\| + \|p_3 - p_5\|}{2 \cdot \|p_1 - p_4\|}$\;
+        $\mathcal{D} \leftarrow \mathcal{D} \cup \{(bbox, \text{état}, c_{\text{eye}}, \text{EAR})\}$\;
+    }
+}
+
+\Return{$\mathcal{D}$}\;
+\end{algorithm}
+
+\subsection{Code d'Implémentation}
+
+\begin{lstlisting}[style=pythonstyle, caption={Module de détection visage et yeux.}, label={lst:face_detection}]
+class FaceEyeDetector:
+    """Detecteur de visage et d'yeux combine."""
+    
+    def __init__(self):
+        # Cascades de Haar (OpenCV)
+        self.face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 
+            'haarcascade_frontalface_default.xml'
+        )
+        self.eye_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 
+            'haarcascade_eye.xml'
+        )
+        
+        # Modeles CNN
+        self.face_cnn = FaceDetectionCNN()
+        self.eye_cnn = EyeStateCNN()
+        self.face_cnn.eval()
+        self.eye_cnn.eval()
+    
+    def detect(self, frame, gray):
+        """
+        Detecte les visages et classifie l'etat des yeux.
+        
+        Args:
+            frame: Image BGR originale
+            gray: Image en niveaux de gris preprocessee
+            
+        Returns:
+            Liste de detections avec confiance et etat
+        """
+        detections = []
+        
+        # Detection de visages par Haar
+        faces = self.face_cascade.detectMultiScale(
+            gray, scaleFactor=1.3, minNeighbors=5,
+            minSize=(30, 30)
+        )
+        
+        for (x, y, w, h) in faces:
+            # Extraction ROI visage
+            face_roi = gray[y:y+h, x:x+w]
+            
+            # Validation CNN du visage
+            face_conf = self._classify_face(face_roi)
+            
+            if face_conf > 0.5:  # Seuil de confiance
+                # Detection des yeux dans le visage
+                eye_state, eye_conf = self._detect_eyes(
+                    face_roi
+                )
+                
+                detections.append({
+                    'bbox': (x, y, w, h),
+                    'face_confidence': face_conf,
+                    'eye_state': eye_state,
+                    'eye_confidence': eye_conf
+                })
+        
+        return detections
+    
+    def _classify_face(self, face_roi):
+        """Classifie la ROI comme visage/non-visage."""
+        resized = cv2.resize(face_roi, (64, 64))
+        tensor = torch.FloatTensor(resized).unsqueeze(0)
+        tensor = tensor.unsqueeze(0) / 255.0
+        
+        with torch.no_grad():
+            output = self.face_cnn(tensor)
+            prob = F.softmax(output, dim=1)
+        
+        return prob[0][1].item()
+    
+    def _detect_eyes(self, face_roi):
+        """Detecte et classifie l'etat des yeux."""
+        eyes = self.eye_cascade.detectMultiScale(
+            face_roi, scaleFactor=1.1, minNeighbors=3
+        )
+        
+        if len(eyes) == 0:
+            return 'unknown', 0.0
+        
+        states = []
+        confidences = []
+        
+        for (ex, ey, ew, eh) in eyes[:2]:
+            eye_roi = face_roi[ey:ey+eh, ex:ex+ew]
+            resized = cv2.resize(eye_roi, (24, 24))
+            tensor = torch.FloatTensor(resized).unsqueeze(0)
+            tensor = tensor.unsqueeze(0) / 255.0
+            
+            with torch.no_grad():
+                output = self.eye_cnn(tensor)
+                prob = F.softmax(output, dim=1)
+            
+            state = 'open' if prob[0][0] > prob[0][1] \
+                    else 'closed'
+            conf = max(prob[0]).item()
+            states.append(state)
+            confidences.append(conf)
+        
+        # Vote majoritaire
+        final_state = max(set(states), key=states.count)
+        final_conf = np.mean(confidences)
+        
+        return final_state, final_conf
+\end{lstlisting}
+
+\section{Implémentation de l'Estimation de la Pose}
+
+\begin{lstlisting}[style=pythonstyle, caption={Module d'estimation de la pose de la tête.}, label={lst:head_pose}]
+class HeadPoseEstimator:
+    """Estimateur de la pose de la tete par PnP."""
+    
+    # Points 3D du modele de visage generique (mm)
+    MODEL_POINTS_3D = np.array([
+        (0.0, 0.0, 0.0),         # Bout du nez
+        (0.0, -330.0, -65.0),     # Menton
+        (-225.0, 170.0, -135.0),  # Coin oeil gauche
+        (225.0, 170.0, -135.0),   # Coin oeil droit
+        (-150.0, -150.0, -125.0), # Coin bouche gauche
+        (150.0, -150.0, -125.0),  # Coin bouche droit
+    ], dtype=np.float64)
+    
+    def __init__(self, frame_width=640, frame_height=480):
+        """
+        Initialise l'estimateur.
+        
+        Calcul de la matrice intrinseque K approximee:
+        fx = fy = largeur_image (approximation focale)
+        cx, cy = centre de l'image
+        """
+        focal_length = frame_width
+        center = (frame_width / 2, frame_height / 2)
+        
+        self.camera_matrix = np.array([
+            [focal_length, 0, center[0]],
+            [0, focal_length, center[1]],
+            [0, 0, 1]
+        ], dtype=np.float64)
+        
+        # Pas de distorsion (approximation)
+        self.dist_coeffs = np.zeros((4, 1))
+    
+    def estimate(self, landmarks_2d):
+        """
+        Estime la pose de la tete.
+        
+        Args:
+            landmarks_2d: Array (6, 2) des points 2D
+            
+        Returns:
+            dict: {'yaw': float, 'pitch': float, 
+                   'roll': float} en degres
+        """
+        landmarks = np.array(landmarks_2d, dtype=np.float64)
+        
+        # Resolution du probleme PnP
+        success, rvec, tvec = cv2.solvePnP(
+            self.MODEL_POINTS_3D,
+            landmarks,
+            self.camera_matrix,
+            self.dist_coeffs,
+            flags=cv2.SOLVEPNP_ITERATIVE
+        )
+        
+        if not success:
+            return {'yaw': 0.0, 'pitch': 0.0, 'roll': 0.0}
+        
+        # Conversion vecteur de Rodrigues -> matrice
+        rotation_matrix, _ = cv2.Rodrigues(rvec)
+        
+        # Extraction des angles d'Euler
+        angles = self._rotation_to_euler(rotation_matrix)
+        
+        return {
+            'yaw': np.degrees(angles[1]),    # Lacet
+            'pitch': np.degrees(angles[0]),  # Tangage
+            'roll': np.degrees(angles[2])    # Roulis
+        }
+    
+    def _rotation_to_euler(self, R):
+        """
+        Convertit une matrice de rotation en angles 
+        d'Euler (pitch, yaw, roll).
+        
+        Formules:
+        pitch = atan2(-R31, sqrt(R32^2 + R33^2))
+        yaw   = atan2(R21, R11)
+        roll  = atan2(R32, R33)
+        """
+        sy = np.sqrt(R[0, 0]**2 + R[1, 0]**2)
+        
+        if sy > 1e-6:  # Non singulier
+            pitch = np.arctan2(-R[2, 0], sy)
+            yaw = np.arctan2(R[1, 0], R[0, 0])
+            roll = np.arctan2(R[2, 1], R[2, 2])
+        else:  # Singulier (gimbal lock)
+            pitch = np.arctan2(-R[2, 0], sy)
+            yaw = np.arctan2(-R[1, 2], R[1, 1])
+            roll = 0.0
+        
+        return np.array([pitch, yaw, roll])
+\end{lstlisting}
+
+\section{Implémentation de l'Analyse Comportementale}
+
+\begin{lstlisting}[style=pythonstyle, caption={Module d'analyse comportementale.}, label={lst:behavioral}]
+from collections import deque
+import time
+
+class BehavioralAnalyzer:
+    """
+    Analyse comportementale du conducteur.
+    
+    Calcule les indicateurs de fatigue et distraction
+    sur une fenetre temporelle glissante.
+    """
+    
+    def __init__(self, window_seconds=60, fps=30):
+        """
+        Args:
+            window_seconds: Taille de la fenetre (secondes)
+            fps: Images par seconde
+        """
+        self.window_size = window_seconds * fps
+        self.fps = fps
+        
+        # Tampons circulaires
+        self.eye_states = deque(maxlen=self.window_size)
+        self.timestamps = deque(maxlen=self.window_size)
+        
+        # Suivi des clignements
+        self.blink_events = deque(maxlen=100)
+        self.current_blink_start = None
+        self.prev_eye_state = 'open'
+        
+        # Indicateurs courants
+        self.perclos = 0.0
+        self.blink_frequency = 0.0
+        self.avg_blink_duration = 0.0
+        self.current_closure_duration = 0.0
+    
+    def update(self, eye_state, head_pose, timestamp=None):
+        """
+        Met a jour l'analyse avec une nouvelle observation.
+        
+        Args:
+            eye_state: 'open' ou 'closed'
+            head_pose: dict {'yaw', 'pitch', 'roll'}
+            timestamp: Temps courant (secondes)
+        """
+        if timestamp is None:
+            timestamp = time.time()
+        
+        self.eye_states.append(eye_state)
+        self.timestamps.append(timestamp)
+        
+        # Mise a jour des clignements
+        self._update_blinks(eye_state, timestamp)
+        
+        # Calcul des indicateurs
+        self._compute_perclos()
+        self._compute_blink_metrics()
+        self._compute_closure_duration(eye_state, timestamp)
+        
+        # Calcul des scores
+        fatigue_score = self._compute_fatigue_score()
+        distraction_score = self._compute_distraction_score(
+            head_pose
+        )
+        
+        return {
+            'perclos': self.perclos,
+            'blink_frequency': self.blink_frequency,
+            'avg_blink_duration': self.avg_blink_duration,
+            'fatigue_score': fatigue_score,
+            'distraction_score': distraction_score,
+            'driver_state': self._classify_state(
+                fatigue_score, distraction_score
+            )
+        }
+    
+    def _update_blinks(self, eye_state, timestamp):
+        """Detecte et enregistre les clignements."""
+        if self.prev_eye_state == 'open' and \
+           eye_state == 'closed':
+            # Debut d'un clignement
+            self.current_blink_start = timestamp
+        
+        elif self.prev_eye_state == 'closed' and \
+             eye_state == 'open':
+            # Fin d'un clignement
+            if self.current_blink_start is not None:
+                duration = timestamp - self.current_blink_start
+                if 0.05 < duration < 2.0:  # Filtre
+                    self.blink_events.append({
+                        'time': timestamp,
+                        'duration': duration
+                    })
+                self.current_blink_start = None
+        
+        self.prev_eye_state = eye_state
+    
+    def _compute_perclos(self):
+        """Calcule le PERCLOS sur la fenetre courante."""
+        if len(self.eye_states) == 0:
+            self.perclos = 0.0
+            return
+        
+        closed_count = sum(
+            1 for s in self.eye_states if s == 'closed'
+        )
+        self.perclos = (closed_count / len(self.eye_states)) \
+                       * 100.0
+    
+    def _compute_fatigue_score(self):
+        """
+        Calcule le score de fatigue (equation 3.1).
+        
+        S_fatigue = 0.4*C_PERCLOS + 0.2*C_blink 
+                  + 0.2*C_duration + 0.2*C_closure
+        """
+        # Composante PERCLOS
+        c_perclos = min(self.perclos / 100.0, 1.0)
+        
+        # Composante frequence de clignement
+        normal_freq = 17.5  # clig/min
+        if self.blink_frequency > 0:
+            c_blink = min(
+                abs(self.blink_frequency - normal_freq) 
+                / normal_freq, 1.0
+            )
+        else:
+            c_blink = 0.5  # Absence de clignements
+        
+        # Composante duree des clignements
+        c_duration = min(
+            self.avg_blink_duration / 0.5, 1.0
+        )
+        
+        # Composante fermeture courante
+        c_closure = min(
+            self.current_closure_duration / 2.0, 1.0
+        )
+        
+        # Score combine
+        score = (0.4 * c_perclos + 0.2 * c_blink + 
+                 0.2 * c_duration + 0.2 * c_closure)
+        
+        return min(max(score, 0.0), 1.0)
+    
+    def _compute_distraction_score(self, head_pose):
+        """
+        Calcule le score de distraction (equation 3.2).
+        
+        S_distraction = 0.4*C_yaw + 0.2*C_pitch 
+                      + 0.4*C_away
+        """
+        yaw = abs(head_pose.get('yaw', 0.0))
+        pitch = abs(head_pose.get('pitch', 0.0))
+        
+        c_yaw = min(yaw / 45.0, 1.0)
+        c_pitch = min(pitch / 35.0, 1.0)
+        
+        # Regard detourne
+        is_away = yaw > 30.0 or pitch > 25.0
+        c_away = 1.0 if is_away else 0.0
+        
+        score = 0.4 * c_yaw + 0.2 * c_pitch + 0.4 * c_away
+        
+        return min(max(score, 0.0), 1.0)
+    
+    def _classify_state(self, fatigue_score, 
+                         distraction_score):
+        """
+        Classifie l'etat du conducteur.
+        
+        Algorithm 2 du rapport.
+        """
+        if fatigue_score > 0.7:
+            return 'DROWSY'
+        elif fatigue_score > 0.4:
+            return 'FATIGUED'
+        elif distraction_score > 0.4:
+            return 'DISTRACTED'
+        else:
+            return 'ATTENTIVE'
+\end{lstlisting}
+
+\section{Implémentation de la Logique ECU}
+
+\begin{lstlisting}[style=pythonstyle, caption={Module de logique décisionnelle ECU.}, label={lst:ecu}]
+from enum import IntEnum
+
+class AlertLevel(IntEnum):
+    """Niveaux d'alerte du systeme ECU."""
+    NONE = 0
+    WARNING = 2
+    CRITICAL = 3
+    EMERGENCY = 4
+
+class ECUDecisionModule:
+    """
+    Module de logique decisionnelle simulant un ECU ADAS.
+    
+    Implemente une machine a etats avec 4 niveaux d'alerte
+    et des conditions de transition hysteretiques.
+    """
+    
+    def __init__(self):
+        self.current_level = AlertLevel.NONE
+        self.alert_history = []
+        self.state_duration = 0.0
+        self.last_update_time = None
+    
+    def update(self, fatigue_score, distraction_score, 
+               timestamp=None):
+        """
+        Met a jour l'etat de l'ECU.
+        
+        Args:
+            fatigue_score: Score de fatigue [0, 1]
+            distraction_score: Score de distraction [0, 1]
+            timestamp: Temps courant
+            
+        Returns:
+            dict: {'alert_level': int, 
+                   'action': str, 
+                   'message': str}
+        """
+        S_f = fatigue_score
+        S_d = distraction_score
+        S_max = max(S_f, S_d)
+        
+        prev_level = self.current_level
+        
+        # Logique de transition
+        if self.current_level == AlertLevel.NONE:
+            if S_f > 0.35 or S_d > 0.35:
+                self.current_level = AlertLevel.WARNING
+        
+        elif self.current_level == AlertLevel.WARNING:
+            if S_f > 0.6 or S_d > 0.6:
+                self.current_level = AlertLevel.CRITICAL
+            elif S_f < 0.2 and S_d < 0.2:
+                self.current_level = AlertLevel.NONE
+        
+        elif self.current_level == AlertLevel.CRITICAL:
+            if S_f > 0.75:
+                self.current_level = AlertLevel.EMERGENCY
+            elif S_f < 0.5 and S_d < 0.5:
+                self.current_level = AlertLevel.WARNING
+        
+        elif self.current_level == AlertLevel.EMERGENCY:
+            if S_f < 0.6:
+                self.current_level = AlertLevel.CRITICAL
+        
+        # Generation de l'action
+        action = self._get_action()
+        
+        # Enregistrement
+        if self.current_level != prev_level:
+            self.alert_history.append({
+                'time': timestamp,
+                'from': prev_level,
+                'to': self.current_level,
+                'fatigue': S_f,
+                'distraction': S_d
+            })
+        
+        return {
+            'alert_level': int(self.current_level),
+            'action': action,
+            'message': self._get_message(),
+            'changed': self.current_level != prev_level
+        }
+    
+    def _get_action(self):
+        """Retourne l'action associee au niveau courant."""
+        actions = {
+            AlertLevel.NONE: 'none',
+            AlertLevel.WARNING: 'visual_alert',
+            AlertLevel.CRITICAL: 'audio_alert',
+            AlertLevel.EMERGENCY: 'emergency_brake'
+        }
+        return actions[self.current_level]
+    
+    def _get_message(self):
+        """Retourne le message pour le tableau de bord."""
+        messages = {
+            AlertLevel.NONE: 
+                'Systeme DMS: Fonctionnement normal',
+            AlertLevel.WARNING: 
+                'ATTENTION: Signes de fatigue detectes',
+            AlertLevel.CRITICAL: 
+                'ALERTE: Fatigue significative!',
+            AlertLevel.EMERGENCY: 
+                'URGENCE: Freinage d\'urgence active!'
+        }
+        return messages[self.current_level]
+\end{lstlisting}
+
+\section{Fonction de Perte et Métriques}
+
+\subsection{Matrice de Confusion}
+
+La performance du CNN est évaluée par la matrice de confusion :
+
+\begin{equation}
+\text{Matrice} = \begin{pmatrix} VP & FP \\ FN & VN \end{pmatrix}
+\label{eq:confusion_matrix}
+\end{equation}
+
+Les métriques dérivées sont :
+
+\begin{align}
+\text{Précision} &= \frac{VP}{VP + FP} \label{eq:precision} \\
+\text{Rappel (Sensibilité)} &= \frac{VP}{VP + FN} \label{eq:recall} \\
+\text{Spécificité} &= \frac{VN}{VN + FP} \label{eq:specificity} \\
+F_1 &= 2 \cdot \frac{\text{Précision} \cdot \text{Rappel}}{\text{Précision} + \text{Rappel}} = \frac{2 \cdot VP}{2 \cdot VP + FP + FN} \label{eq:f1}
+\end{align}
+
+\section{Synthèse}
+
+Ce chapitre a présenté l'implémentation complète du système DMS, couvrant :
+\begin{itemize}
+    \item L'acquisition vidéo avec prétraitement CLAHE
+    \item Deux architectures CNN (FaceDetectionCNN et EyeStateCNN) avec leurs processus d'entraînement
+    \item La détection de visage/yeux par combinaison Haar + CNN
+    \item L'estimation de la pose de la tête par PnP
+    \item L'analyse comportementale avec calcul des scores de fatigue et distraction
+    \item La logique décisionnelle ECU avec machine à états
+\end{itemize}
+
+L'ensemble du code est structuré en modules Python indépendants, testables et réutilisables.

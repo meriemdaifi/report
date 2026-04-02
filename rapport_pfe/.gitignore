@@ -1,0 +1,26 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.lof
+*.lot
+*.loa
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.pdf
+*.dvi
+
+# Font generation
+*.tfm
+*.600gf
+*.600pk
+*.300pk
+
+# Editor files
+*.swp
+*~
+.DS_Store
