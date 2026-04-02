@@ -1,0 +1,316 @@
+% ============================================================
+% CHAPITRE 3 : MÉTHODOLOGIE
+% ============================================================
+
+\chapter{Méthodologie de Développement}
+
+\section{Introduction}
+
+Ce chapitre présente la méthodologie adoptée pour le développement et la validation du système DMS. Le projet suit rigoureusement le \keyword{cycle en V} (\textit{V-Model}), méthodologie standard dans l'industrie automobile, complétée par les approches de test et validation \keyword{SIL}, \keyword{MIL} et \keyword{HIL}.
+
+\section{Le Cycle en V Automobile}
+
+\subsection{Présentation du Modèle}
+
+Le \keyword{cycle en V} est la méthodologie de développement de référence dans l'industrie automobile, préconisée par la norme ISO 26262 \cite{iso26262}. Il organise le développement en deux branches symétriques :
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Branche descendante (gauche)} : Phases de spécification et de conception, du niveau système au niveau composant.
+    \item \textbf{Branche ascendante (droite)} : Phases de test et de validation, du niveau composant au niveau système.
+\end{itemize}
+
+Chaque phase de conception sur la branche gauche est directement associée à une phase de test correspondante sur la branche droite.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, fill=#1, text width=3.5cm, text centered, minimum height=1cm, rounded corners=2pt, font=\small\bfseries},
+    arrow/.style={->, >=stealth, thick},
+    dashed_arrow/.style={->, >=stealth, thick, dashed, color=red!60!black}
+]
+    % Branche gauche (descendante)
+    \node[box=stellantisblue!15] (req) at (0, 6) {Spécifications\\Système};
+    \node[box=stellantisblue!20] (arch) at (-2, 4.5) {Architecture\\Système};
+    \node[box=stellantisblue!25] (design) at (-4, 3) {Conception\\Détaillée};
+    \node[box=stellantisblue!30] (impl) at (-5, 1.5) {Implémentation\\(Codage)};
+    
+    % Point bas
+    \node[box=expleored!20] (unit) at (-3, 0) {Tests\\Unitaires};
+    
+    % Branche droite (ascendante)
+    \node[box=green!15] (integ) at (0, 1.5) {Tests\\d'Intégration};
+    \node[box=green!20] (sysv) at (2, 3) {Validation\\Système};
+    \node[box=green!25] (accept) at (4, 4.5) {Tests\\d'Acceptation};
+    \node[box=green!30] (valid) at (2, 6) {Validation\\Finale};
+    
+    % Flèches descendantes
+    \draw[arrow] (req) -- (arch);
+    \draw[arrow] (arch) -- (design);
+    \draw[arrow] (design) -- (impl);
+    \draw[arrow] (impl) -- (unit);
+    
+    % Flèches ascendantes
+    \draw[arrow] (unit) -- (integ);
+    \draw[arrow] (integ) -- (sysv);
+    \draw[arrow] (sysv) -- (accept);
+    \draw[arrow] (accept) -- (valid);
+    
+    % Correspondances horizontales
+    \draw[dashed_arrow] (req) -- node[above, font=\tiny, color=red!60!black] {vérifie} (valid);
+    \draw[dashed_arrow] (arch) -- node[above, font=\tiny, color=red!60!black] {vérifie} (accept);
+    \draw[dashed_arrow] (design) -- node[above, font=\tiny, color=red!60!black] {vérifie} (sysv);
+    \draw[dashed_arrow] (impl) -- node[above, font=\tiny, color=red!60!black] {vérifie} (integ);
+    
+    % Labels des niveaux
+    \node[font=\tiny\itshape, color=gray] at (-6.5, 4.5) {Niveau Système};
+    \node[font=\tiny\itshape, color=gray] at (-6.5, 3) {Niveau Module};
+    \node[font=\tiny\itshape, color=gray] at (-6.5, 1.5) {Niveau Composant};
+    
+\end{tikzpicture}
+\caption{Le cycle en V appliqué au projet DMS.}
+\label{fig:cycle_v}
+\end{figure}
+
+\subsection{Application au Projet DMS}
+
+Le tableau~\ref{tab:cycle_v_dms} détaille l'application du cycle en V à notre projet :
+
+\begin{table}[H]
+\centering
+\caption{Application du cycle en V au projet DMS.}
+\label{tab:cycle_v_dms}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|>{\bfseries\small}p{2.5cm}|X|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Phase} & \textbf{Activités (Branche gauche)} & \textbf{Activités (Branche droite)} \\
+\hline
+Spécifications & Définition des exigences fonctionnelles et non-fonctionnelles du DMS (PERCLOS, alertes, temps de réponse) & Validation finale : le système répond aux exigences initiales \\
+\hline
+Architecture & Décomposition en modules (acquisition, détection, analyse, ECU), définition des interfaces & Tests d'acceptation : validation de chaque module selon les spécifications \\
+\hline
+Conception détaillée & Architecture CNN, algorithmes de détection, protocoles de communication & Validation système : tests d'intégration multi-modules \\
+\hline
+Implémentation & Codage Python/PyTorch, modèles Simulink, firmware robot & Tests unitaires : validation de chaque fonction/classe \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Approches de Test et Validation}
+
+La validation du système DMS suit une progression en trois niveaux d'abstraction, conformément aux pratiques de l'industrie automobile \cite{expleo2024} :
+
+\subsection{MIL -- Model-in-the-Loop}
+
+Le test \keyword{MIL} (\textit{Model-in-the-Loop}) est la première phase de validation. Elle consiste à tester les algorithmes et les modèles mathématiques dans un environnement de simulation pure.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    block/.style={rectangle, draw, fill=#1, text width=3cm, text centered, minimum height=1.2cm, rounded corners=3pt, font=\small},
+    arrow/.style={->, >=stealth, thick}
+]
+    \node[block=orange!15] (model) {Modèle\\Algorithmique\\(MATLAB/Simulink)};
+    \node[block=blue!15, right=2cm of model] (plant) {Modèle de\\l'Environnement\\(Plant Model)};
+    \node[block=green!15, below=1.5cm of $(model)!0.5!(plant)$] (result) {Résultats\\de Simulation};
+    
+    \draw[arrow] (model) -- node[above, font=\tiny] {signaux} (plant);
+    \draw[arrow] (plant) -- node[above, font=\tiny] {feedback} (model);
+    \draw[arrow] (model) -- (result);
+    \draw[arrow] (plant) -- (result);
+    
+    \node[draw, dashed, fit=(model)(plant), inner sep=0.5cm, label=above:{\textbf{Simulation Pure (PC)}}] {};
+\end{tikzpicture}
+\caption{Architecture de test MIL.}
+\label{fig:mil}
+\end{figure}
+
+\textbf{Dans notre projet :}
+\begin{itemize}
+    \item Simulation du système DMS complet sous MATLAB/Simulink
+    \item Génération de signaux synthétiques (état des yeux, angles de tête)
+    \item Validation des algorithmes de calcul de PERCLOS et de scores
+    \item Vérification de la logique ECU avec la machine à états Stateflow
+\end{itemize}
+
+\subsection{SIL -- Software-in-the-Loop}
+
+Le test \keyword{SIL} (\textit{Software-in-the-Loop}) intègre le code logiciel réel dans la boucle de simulation, tout en utilisant un environnement simulé pour les entrées/sorties.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    block/.style={rectangle, draw, fill=#1, text width=3cm, text centered, minimum height=1.2cm, rounded corners=3pt, font=\small},
+    arrow/.style={->, >=stealth, thick}
+]
+    \node[block=red!15] (code) {Code Logiciel\\Réel\\(Python/PyTorch)};
+    \node[block=blue!15, right=2cm of code] (sim) {Environnement\\Simulé\\(Images de test)};
+    \node[block=green!15, below=1.5cm of $(code)!0.5!(sim)$] (result) {Résultats\\de Test};
+    
+    \draw[arrow] (sim) -- node[above, font=\tiny] {images} (code);
+    \draw[arrow] (code) -- node[below, font=\tiny] {décisions} (sim);
+    \draw[arrow] (code) -- (result);
+    
+    \node[draw, dashed, fit=(code)(sim), inner sep=0.5cm, label=above:{\textbf{Logiciel Réel + Simulation (PC)}}] {};
+\end{tikzpicture}
+\caption{Architecture de test SIL.}
+\label{fig:sil}
+\end{figure}
+
+\textbf{Dans notre projet :}
+\begin{itemize}
+    \item Exécution du code Python réel avec des images de test synthétiques et réelles
+    \item Validation des modèles CNN (EyeStateCNN, FaceDetectionCNN)
+    \item Tests des scénarios complets (conducteur attentif, fatigué, distrait, mixte)
+    \item 34 tests unitaires couvrant l'ensemble des modules
+\end{itemize}
+
+\subsection{HIL -- Hardware-in-the-Loop}
+
+Le test \keyword{HIL} (\textit{Hardware-in-the-Loop}) intègre le matériel réel (ECU, capteurs, actionneurs) dans la boucle de test, simulant uniquement l'environnement extérieur.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    block/.style={rectangle, draw, fill=#1, text width=2.8cm, text centered, minimum height=1.2cm, rounded corners=3pt, font=\small},
+    arrow/.style={->, >=stealth, thick}
+]
+    \node[block=red!20] (ecu) {ECU Réel\\(Raspberry Pi)};
+    \node[block=orange!15, above right=0.8cm and 2cm of ecu] (cam) {Caméra\\Réelle};
+    \node[block=blue!15, right=2cm of ecu] (sim) {Environnement\\Simulé};
+    \node[block=green!15, below right=0.8cm and 2cm of ecu] (act) {Actionneurs\\Réels};
+    
+    \draw[arrow] (cam) -- node[above, font=\tiny, sloped] {images} (ecu);
+    \draw[arrow] (sim) -- node[above, font=\tiny] {scénarios} (ecu);
+    \draw[arrow] (ecu) -- node[below, font=\tiny, sloped] {commandes} (act);
+    
+    \node[draw, dashed, fit=(ecu)(cam)(act), inner sep=0.5cm, label=below:{\textbf{Matériel Réel + Simulation Environnement}}] {};
+\end{tikzpicture}
+\caption{Architecture de test HIL.}
+\label{fig:hil}
+\end{figure}
+
+\textbf{Dans notre projet :}
+\begin{itemize}
+    \item Prototype robot avec Raspberry Pi comme ECU
+    \item Caméra USB réelle pour l'acquisition vidéo
+    \item Actionneurs (LED, buzzer, servo-moteurs) simulant les alertes
+    \item Communication CAN/UART entre les composants
+    \item Tests des scénarios en conditions réelles
+\end{itemize}
+
+\subsection{Comparaison des Approches}
+
+\begin{table}[H]
+\centering
+\caption{Comparaison des approches de test MIL, SIL et HIL.}
+\label{tab:mil_sil_hil}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|>{\bfseries}l|X|X|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Critère} & \textbf{MIL} & \textbf{SIL} & \textbf{HIL} \\
+\hline
+Logiciel & Modèle (Simulink) & Code réel (Python) & Code réel embarqué \\
+\hline
+Matériel & Aucun (simulation) & Aucun (PC) & ECU + capteurs réels \\
+\hline
+Environnement & Simulé & Simulé & Partiellement simulé \\
+\hline
+Coût & Faible & Moyen & Élevé \\
+\hline
+Fidélité & Basse & Moyenne & Haute \\
+\hline
+Temps de test & Rapide & Moyen & Lent \\
+\hline
+Phase du cycle en V & Conception & Implémentation & Intégration \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Outils de Test et Validation}
+
+\subsection{Outils Logiciels}
+
+Les outils suivants sont utilisés pour le test et la validation :
+
+\begin{table}[H]
+\centering
+\caption{Outils de test et validation utilisés.}
+\label{tab:outils_test}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Outil} & \textbf{Type} & \textbf{Utilisation} \\
+\hline
+Python unittest & Test unitaire & 34 tests unitaires pour tous les modules \\
+\hline
+MATLAB/Simulink & Simulation & Modélisation et simulation MIL du système DMS \\
+\hline
+Stateflow & Machine à états & Modélisation de la logique ECU \\
+\hline
+Simulink Test & Test automatisé & Tests de régression des modèles Simulink \\
+\hline
+OpenCV & Vision par ordinateur & Traitement d'images et détection \\
+\hline
+PyTorch & Deep Learning & Entraînement et inférence des CNN \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Métriques de Validation}
+
+Les métriques suivantes sont utilisées pour évaluer les performances du système :
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Précision de détection} : $\text{Précision} = \frac{VP}{VP + FP}$
+    \item \textbf{Rappel} : $\text{Rappel} = \frac{VP}{VP + FN}$
+    \item \textbf{F1-Score} : $F_1 = 2 \cdot \frac{\text{Précision} \cdot \text{Rappel}}{\text{Précision} + \text{Rappel}}$
+    \item \textbf{Temps de réponse} : Latence entre la détection et la génération d'alerte
+    \item \textbf{Taux de faux positifs} : Alertes générées sans danger réel
+    \item \textbf{Taux de détection} : Pourcentage de situations dangereuses correctement identifiées
+\end{enumerate}
+
+\section{Gestion de Projet}
+
+\subsection{Planning Prévisionnel}
+
+Le projet est planifié sur une durée de 6 mois, décomposé en sprints de 2 semaines :
+
+\begin{table}[H]
+\centering
+\caption{Planning prévisionnel du projet DMS.}
+\label{tab:planning}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{|c|l|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Mois} & \textbf{Phase} & \textbf{Livrables} \\
+\hline
+1 & Analyse et spécification & Cahier des charges, analyse QQOQCP, spécifications fonctionnelles \\
+\hline
+2 & Conception & Architecture système, conception CNN, modèles Simulink \\
+\hline
+3 & Implémentation (Partie 1) & Code Python, modèles CNN entraînés, algorithmes de détection \\
+\hline
+4 & Implémentation (Partie 2) & Logique ECU, analyse comportementale, prototype robot \\
+\hline
+5 & Test et Validation & Tests unitaires, SIL, MIL, HIL, scénarios de validation \\
+\hline
+6 & Rédaction et soutenance & Rapport PFE, préparation soutenance, démonstration \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Synthèse}
+
+La méthodologie adoptée pour ce projet combine :
+\begin{itemize}
+    \item Le \textbf{cycle en V} pour structurer le développement de manière rigoureuse
+    \item Les approches \textbf{MIL}, \textbf{SIL} et \textbf{HIL} pour une validation progressive et exhaustive
+    \item Des outils industriels standard (MATLAB/Simulink, Python, PyTorch)
+    \item Des métriques de performance quantitatives et objectives
+\end{itemize}
+
+Cette approche garantit la qualité, la fiabilité et la traçabilité du système développé, conformément aux exigences de l'industrie automobile et aux standards de Stellantis.

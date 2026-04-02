@@ -1,0 +1,182 @@
+% ============================================================
+% PROJET DE FIN D'ÉTUDES
+% Conception et Simulation d'un Système ADAS
+% basé sur le Traitement Vidéo
+% (Driver Monitoring System - DMS)
+%
+% Réalisé par : Meriem Daifi
+% Encadré par : [Nom de l'encadrant]
+% Entreprise d'accueil : Expleo Group (pour Stellantis)
+% Année Universitaire 2025-2026
+% ============================================================
+
+\documentclass[12pt,a4paper,twoside]{report}
+
+% ===== Encodage et langue =====
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+% ===== Mise en page =====
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+% ===== Mathématiques =====
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+
+% ===== Graphiques et figures =====
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc, fit, backgrounds, decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+% ===== Tableaux =====
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{colortbl}
+\usepackage{tabularx}
+
+% ===== Code source =====
+\usepackage{listings}
+\usepackage{xcolor}
+
+% ===== Algorithmes =====
+\usepackage[french,ruled,vlined,linesnumbered]{algorithm2e}
+
+% ===== Hyperliens =====
+\usepackage[colorlinks=true, linkcolor=blue!60!black, citecolor=green!50!black, urlcolor=blue!70!black]{hyperref}
+
+% ===== Divers =====
+\usepackage{enumitem}
+\usepackage{pdfpages}
+\usepackage{appendix}
+\usepackage{glossaries}
+\usepackage{nomencl}
+\usepackage{tocloft}
+
+% ===== Configuration des en-têtes/pieds de page =====
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\leftmark}
+\fancyhead[RO]{\rightmark}
+\fancyfoot[C]{\thepage/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+% ===== Couleurs personnalisées =====
+\definecolor{stellantisblue}{RGB}{0, 47, 108}
+\definecolor{expleored}{RGB}{228, 0, 43}
+\definecolor{codegreen}{RGB}{0, 128, 0}
+\definecolor{codegray}{RGB}{128, 128, 128}
+\definecolor{codeblue}{RGB}{0, 0, 200}
+\definecolor{backcolour}{RGB}{245, 245, 245}
+\definecolor{darkblue}{RGB}{0, 0, 139}
+\definecolor{alertyellow}{RGB}{255, 193, 7}
+\definecolor{alertorange}{RGB}{255, 152, 0}
+\definecolor{alertred}{RGB}{244, 67, 54}
+
+% ===== Style de code Python =====
+\lstdefinestyle{pythonstyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{codeblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{red!70!black},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray!50},
+    language=Python
+}
+
+% ===== Style de code MATLAB =====
+\lstdefinestyle{matlabstyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{codeblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{red!70!black},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    numbers=left,
+    numbersep=5pt,
+    frame=single,
+    rulecolor=\color{gray!50},
+    language=Matlab
+}
+
+\lstset{style=pythonstyle}
+
+% ===== Commandes personnalisées =====
+\newcommand{\keyword}[1]{\textbf{\textcolor{stellantisblue}{#1}}}
+\newcommand{\important}[1]{\textbf{\textcolor{expleored}{#1}}}
+
+% ============================================================
+\begin{document}
+
+% ===== Page de garde =====
+\input{chapters/page_de_garde}
+
+% ===== Pages préliminaires =====
+\pagenumbering{roman}
+
+\input{chapters/remerciements}
+\input{chapters/resume}
+
+% ===== Tables des matières =====
+\tableofcontents
+\listoffigures
+\listoftables
+\listofalgorithms
+\addcontentsline{toc}{chapter}{Liste des algorithmes}
+
+% ===== Liste des abréviations =====
+\input{chapters/abreviations}
+
+% ===== Corps du rapport =====
+\pagenumbering{arabic}
+
+\input{chapters/chapitre1_introduction}
+\input{chapters/chapitre2_bibliographie}
+\input{chapters/chapitre3_methodologie}
+\input{chapters/chapitre4_architecture}
+\input{chapters/chapitre5_implementation}
+\input{chapters/chapitre6_simulink}
+\input{chapters/chapitre7_robot}
+\input{chapters/chapitre8_resultats}
+\input{chapters/chapitre9_optimisations}
+\input{chapters/chapitre10_conclusion}
+
+% ===== Bibliographie =====
+\bibliographystyle{ieeetr}
+\bibliography{references}
+\addcontentsline{toc}{chapter}{Bibliographie}
+
+% ===== Annexes =====
+\appendix
+\input{appendices/annexe_a_installation}
+\input{appendices/annexe_b_code}
+\input{appendices/annexe_c_configurations}
+
+\end{document}

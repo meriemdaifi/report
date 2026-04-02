@@ -1,0 +1,123 @@
+% ============================================================
+% CHAPITRE 1 : INTRODUCTION GÉNÉRALE
+% ============================================================
+
+\chapter{Introduction Générale}
+
+\section{Contexte Général}
+
+La sécurité routière constitue un enjeu majeur de santé publique à l'échelle mondiale. Selon le rapport de l'Organisation Mondiale de la Santé (OMS) de 2021, environ \textbf{1,35 million de personnes} meurent chaque année dans des accidents de la circulation, faisant de ces derniers la huitième cause de décès dans le monde \cite{oms2021}. Parmi les facteurs contributifs majeurs, la \keyword{fatigue du conducteur} est responsable de 20\% à 30\% des accidents mortels, et la \keyword{distraction} en cause dans plus de 25\% des cas.
+
+Face à cette réalité alarmante, l'industrie automobile a développé les \keyword{systèmes avancés d'aide à la conduite} (ADAS -- \textit{Advanced Driver Assistance Systems}) qui représentent une avancée technologique significative vers l'amélioration de la sécurité routière. Parmi ces systèmes, le \keyword{Driver Monitoring System (DMS)} occupe une place centrale en surveillant en temps réel l'état physiologique et comportemental du conducteur.
+
+La réglementation européenne \textbf{Euro NCAP 2025} \cite{euroncap2023} impose désormais l'intégration de systèmes DMS dans tous les nouveaux véhicules commercialisés en Europe, ce qui a accéléré la demande de solutions fiables, performantes et optimisées pour l'embarqué.
+
+\section{Présentation de l'Entreprise d'Accueil}
+
+\subsection{Expleo Group}
+
+\keyword{Expleo Group} est un acteur mondial de l'ingénierie, de la technologie et du conseil, présent dans plus de 30 pays avec plus de 17\,000 collaborateurs. Le groupe intervient dans des secteurs stratégiques tels que l'automobile, l'aéronautique, le spatial, les télécommunications et l'énergie.
+
+Dans le domaine automobile, Expleo se positionne comme un partenaire privilégié des constructeurs et équipementiers pour :
+\begin{itemize}[leftmargin=2cm]
+    \item Le développement de systèmes embarqués et ADAS
+    \item Le test et la validation de logiciels critiques
+    \item L'homologation et la conformité aux normes (ISO 26262, AUTOSAR)
+    \item L'accompagnement vers la conduite autonome
+\end{itemize}
+
+\subsection{Stellantis -- Client Final}
+
+\keyword{Stellantis N.V.} est le quatrième constructeur automobile mondial, né de la fusion entre PSA (Peugeot, Citroën, DS, Opel) et FCA (Fiat, Chrysler, Jeep, Alfa Romeo) en janvier 2021. Avec 14 marques emblématiques et une production de plus de 6 millions de véhicules par an, Stellantis investit massivement dans les technologies ADAS et la conduite autonome.
+
+Ce projet s'inscrit dans la stratégie de Stellantis visant à intégrer des fonctions DMS avancées dans ses véhicules de nouvelle génération, conformément aux exigences Euro NCAP et à la norme ISO 26262 \cite{iso26262}.
+
+\section{Analyse du Projet -- Méthode QQOQCP}
+
+La méthode \keyword{QQOQCP} (\textit{Qui, Quoi, Où, Quand, Comment, Pourquoi}) permet de cadrer précisément le projet :
+
+\begin{table}[H]
+\centering
+\caption{Analyse QQOQCP du projet DMS.}
+\label{tab:qqoqcp}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{|>{\bfseries\centering\arraybackslash}p{2.5cm}|X|}
+\hline
+\rowcolor{stellantisblue!15}
+\textbf{Question} & \textbf{Réponse} \\
+\hline
+Qui ? & \textbf{Meriem Daifi}, stagiaire ingénieur chez Expleo Group, sous la supervision de [Nom de l'encadrant], pour le compte de Stellantis (département ADAS). \\
+\hline
+Quoi ? & Conception, implémentation et validation d'un système DMS complet intégrant : détection du visage et des yeux par CNN, estimation de la pose de la tête, analyse comportementale (PERCLOS, clignements), logique décisionnelle ECU et prototypage robot. \\
+\hline
+Où ? & Expleo Group -- site de [Ville], France. Département Test et Validation Automobile. \\
+\hline
+Quand ? & Stage de fin d'études, année universitaire 2025--2026 (durée : 6 mois). \\
+\hline
+Comment ? & En suivant la méthodologie du \textbf{cycle en V} automobile, avec des phases de spécification, conception, implémentation, tests unitaires, intégration et validation (SIL, MIL, HIL). Outils : Python/PyTorch, OpenCV, MATLAB/Simulink, protocoles CAN/UART. \\
+\hline
+Pourquoi ? & Répondre aux exigences réglementaires Euro NCAP 2025 imposant un DMS dans les nouveaux véhicules. Améliorer la sécurité routière en détectant la fatigue et la distraction du conducteur en temps réel. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Problématique}
+
+La problématique centrale de ce projet peut être formulée comme suit :
+
+\begin{center}
+\fbox{\parbox{0.85\textwidth}{\centering\vspace{0.3cm}
+\textit{Comment concevoir, implémenter et valider un système de surveillance du conducteur (DMS) capable de détecter en temps réel la fatigue et la distraction, tout en respectant les contraintes de performance, de fiabilité et de coût imposées par l'industrie automobile pour un déploiement sur ECU embarqué ?}
+\vspace{0.3cm}}}
+\end{center}
+
+Cette problématique se décline en sous-questions :
+\begin{enumerate}[leftmargin=2cm]
+    \item Comment détecter le visage et les yeux du conducteur avec une précision suffisante en conditions réelles (variation d'éclairage, port de lunettes, mouvement) ?
+    \item Quels indicateurs comportementaux sont les plus pertinents pour évaluer la fatigue et la distraction ?
+    \item Comment concevoir une architecture CNN optimisée pour un fonctionnement temps réel sur plateforme embarquée ?
+    \item Comment implémenter une logique décisionnelle ECU robuste générant des alertes adaptées ?
+    \item Comment valider le système de manière exhaustive selon la méthodologie du cycle en V ?
+    \item Comment réaliser un prototype physique démontrant le fonctionnement complet du système ?
+\end{enumerate}
+
+\section{Objectifs du Projet}
+
+Les objectifs de ce projet sont structurés en objectifs principaux et secondaires :
+
+\subsection{Objectifs Principaux}
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Développer un pipeline de traitement vidéo} pour l'acquisition, le prétraitement et l'analyse d'images du conducteur en temps réel.
+    \item \textbf{Concevoir et entraîner un modèle CNN} pour la détection du visage et la classification de l'état des yeux (ouvert/fermé).
+    \item \textbf{Implémenter un module d'estimation de la pose de la tête} basé sur l'algorithme PnP (\textit{Perspective-n-Point}).
+    \item \textbf{Calculer les indicateurs comportementaux} : PERCLOS, fréquence de clignement, durée des clignements et scores de fatigue/distraction.
+    \item \textbf{Concevoir une logique décisionnelle ECU} avec un système d'alertes hiérarchiques (4 niveaux).
+    \item \textbf{Modéliser et simuler le système} sous MATLAB/Simulink avec une machine à états Stateflow.
+    \item \textbf{Valider le système} par des scénarios de test exhaustifs selon la méthodologie SIL/MIL/HIL.
+\end{enumerate}
+
+\subsection{Objectifs Secondaires}
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Prototyper un robot} intégrant le système DMS avec communication caméra-ECU-actionneurs.
+    \item \textbf{Optimiser l'architecture CNN} pour un déploiement embarqué (quantification, pruning, conversion ONNX).
+    \item \textbf{Documenter exhaustivement} le projet conformément aux standards industriels.
+\end{enumerate}
+
+\section{Organisation du Rapport}
+
+Ce rapport est organisé en dix chapitres suivant une progression logique :
+
+\begin{description}[leftmargin=2cm, style=nextline]
+    \item[\textbf{Chapitre 1} --] \textbf{Introduction Générale} : Contexte, présentation du projet, analyse QQOQCP et objectifs.
+    \item[\textbf{Chapitre 2} --] \textbf{Étude Bibliographique} : État de l'art sur les systèmes ADAS, DMS, CNN et protocoles de communication automobile.
+    \item[\textbf{Chapitre 3} --] \textbf{Méthodologie} : Cycle en V, approches de test et validation (SIL, MIL, HIL), gestion de projet.
+    \item[\textbf{Chapitre 4} --] \textbf{Architecture du Système} : Conception détaillée des modules, communication inter-composants et protocoles.
+    \item[\textbf{Chapitre 5} --] \textbf{Implémentation} : Programmation Python, entraînement CNN, algorithmes de vision par ordinateur.
+    \item[\textbf{Chapitre 6} --] \textbf{Modélisation Simulink} : Modèles de simulation, machine à états Stateflow et résultats.
+    \item[\textbf{Chapitre 7} --] \textbf{Prototypage Robot} : Conception du prototype, exigences matérielles, tests en conditions réelles.
+    \item[\textbf{Chapitre 8} --] \textbf{Résultats et Validation} : Scénarios de test, métriques de performance, validation croisée.
+    \item[\textbf{Chapitre 9} --] \textbf{Optimisations et Perspectives} : Réduction des coûts, optimisation énergétique, architectures avancées.
+    \item[\textbf{Chapitre 10} --] \textbf{Conclusion et Perspectives} : Synthèse des travaux et ouvertures futures.
+\end{description}

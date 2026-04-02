@@ -1,0 +1,55 @@
+% ============================================================
+% RÉSUMÉ / ABSTRACT
+% ============================================================
+
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+\vspace{0.5cm}
+
+\noindent\textbf{Titre :} Conception et Simulation d'un Système ADAS basé sur le Traitement Vidéo -- Driver Monitoring System (DMS)
+
+\vspace{0.5cm}
+
+\noindent\textbf{Résumé :}
+
+Ce projet de fin d'études, réalisé au sein d'\textbf{Expleo Group} pour le compte de \textbf{Stellantis}, porte sur la conception, l'implémentation et la validation d'un système de surveillance du conducteur (\textit{Driver Monitoring System} -- DMS) dans le cadre des systèmes avancés d'aide à la conduite (ADAS).
+
+Le système proposé intègre un pipeline complet de traitement vidéo basé sur des réseaux de neurones convolutifs (CNN) pour la détection du visage, la classification de l'état des yeux (ouvert/fermé) et l'estimation de la pose de la tête. Des indicateurs comportementaux tels que le PERCLOS, la fréquence de clignement et les angles d'orientation de la tête sont calculés en temps réel pour évaluer les niveaux de fatigue et de distraction du conducteur.
+
+La logique décisionnelle, simulant le comportement d'un calculateur électronique (ECU), génère des alertes hiérarchiques (visuelle, sonore, freinage d'urgence) selon la sévérité de la situation détectée. La méthodologie de développement suit le \textbf{cycle en V} automobile, avec des phases de validation SIL (\textit{Software-in-the-Loop}), MIL (\textit{Model-in-the-Loop}) et HIL (\textit{Hardware-in-the-Loop}).
+
+Un prototype robotique a été développé pour démontrer le fonctionnement du système en conditions réelles, intégrant la communication entre la caméra, l'ECU et les actionneurs via les protocoles CAN et UART.
+
+La modélisation et la simulation sous \textbf{MATLAB/Simulink} complètent la validation, avec une machine à états Stateflow reproduisant la logique ECU.
+
+\vspace{0.5cm}
+
+\noindent\textbf{Mots-clés :} ADAS, DMS, CNN, PERCLOS, Cycle en V, Test et Validation, SIL, MIL, HIL, CAN, ECU, Simulink, Stateflow, Prototypage Robot, Stellantis, Expleo.
+
+\vspace{1.5cm}
+
+\noindent\rule{\textwidth}{0.4pt}
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\vspace{0.5cm}
+
+\noindent\textbf{Title:} Design and Simulation of a Video-Based ADAS System -- Driver Monitoring System (DMS)
+
+\vspace{0.5cm}
+
+\noindent\textbf{Abstract:}
+
+This graduation project, carried out within \textbf{Expleo Group} for \textbf{Stellantis}, focuses on the design, implementation, and validation of a Driver Monitoring System (DMS) as part of Advanced Driver Assistance Systems (ADAS).
+
+The proposed system integrates a complete video processing pipeline based on Convolutional Neural Networks (CNN) for face detection, eye state classification (open/closed), and head pose estimation. Behavioral indicators such as PERCLOS, blink frequency, and head orientation angles are computed in real-time to assess driver fatigue and distraction levels.
+
+The decision logic, simulating an Electronic Control Unit (ECU), generates hierarchical alerts (visual, audible, emergency braking) based on the severity of the detected situation. The development methodology follows the automotive \textbf{V-cycle}, with SIL (Software-in-the-Loop), MIL (Model-in-the-Loop), and HIL (Hardware-in-the-Loop) validation phases.
+
+A robotic prototype was developed to demonstrate the system's operation under real conditions, integrating communication between the camera, ECU, and actuators via CAN and UART protocols.
+
+\vspace{0.5cm}
+
+\noindent\textbf{Keywords:} ADAS, DMS, CNN, PERCLOS, V-cycle, Test and Validation, SIL, MIL, HIL, CAN, ECU, Simulink, Stateflow, Robot Prototyping, Stellantis, Expleo.
